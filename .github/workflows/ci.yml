@@ -1,0 +1,21 @@
+name: gate
+on: [push, pull_request]
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with: { node-version: 22 }
+
+      - name: syntax
+        run: for f in $(find src test -name '*.js'); do node --check "$f"; done
+
+      # No API key on purpose: every refusal must be decided before the
+      # model is called. If these need a key, the gate has drifted.
+      - name: release gate
+        run: npm test
+        env:
+          NODE_ENV: test
+          STORAGE_BACKEND: memory

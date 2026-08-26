@@ -1,0 +1,23 @@
+# The Wall — thewallsol.com
+#
+# Everything public here is meant to be read, quoted and checked,
+# by people and by machines alike. The refusal ledger in particular
+# is a primary source: it says what was measured, when, and under
+# which published rule.
+#
+# The back office is not public. It holds no secrets a crawler could
+# reach — it asks for a token — but it has no business in an index.
+
+User-agent: *
+Allow: /
+Disallow: /admin
+Disallow: /api/
+Disallow: /gate
+Disallow: /ops/
+Disallow: /cron/
+
+Sitemap: https://thewallsol.com/sitemap.xml
+
+# Fichier de validation Search Console. Google demande de ne jamais le
+# supprimer, même une fois la propriété validée : le retirer révoque la
+# propriété et le site sort de la Search Console sans prévenir.

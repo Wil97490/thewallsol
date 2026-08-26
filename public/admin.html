@@ -1,0 +1,199 @@
+<!doctype html>
+<html lang="fr">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow">
+<meta name="robots" content="noindex, nofollow">
+<title>Back-office — The Wall</title>
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:opsz,wght@6..96,400;6..96,600;6..96,800&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="mark" href="/"><svg class="glyph" viewBox="0 0 40 40" aria-hidden="true" focusable="false"><rect x="1.25" y="1.25" width="37.5" height="37.5" fill="none" stroke="var(--brass)" stroke-width="2.5"/><text x="20" y="29.5" text-anchor="middle" font-family="Bodoni Moda, Georgia, serif" font-size="27" font-weight="800" fill="currentColor">№</text></svg>THE WALL <span>back-office</span></a>
+    <nav class="nav"><a href="/">Le mur</a><a href="/rules">Les règles</a></nav>
+    <span class="pill live" id="agentState"><i></i>—</span>
+    <button class="pill" id="theme" type="button">Thème</button>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero" id="gate">
+    <h1>Accès</h1>
+    <p class="sub">Le jeton reste dans cet onglet. Il n'est ni enregistré ni envoyé ailleurs qu'à votre propre serveur.</p>
+    <form id="auth" style="max-width:420px;margin-top:22px">
+      <div class="field">
+        <label for="token">ADMIN_TOKEN</label>
+        <input id="token" type="password" autocomplete="current-password" required>
+      </div>
+      <button class="btn" type="submit">Entrer</button>
+      <div class="err" id="authErr" hidden></div>
+    </form>
+  </div>
+
+  <div id="app" hidden>
+    <section style="border-top:0">
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="eyebrow">La ronde</p>
+          <h2>Qui vérifier aujourd'hui</h2>
+          <p class="note">Les contrats qui achètent de l'attention en ce moment : boosts, publicités et fiches revendiquées sur DexScreener. Le gate tourne dessus <strong>sans rien enregistrer</strong>. Vous lisez, vous choisissez, vous publiez celui que vous voulez.</p>
+        </div>
+        <form id="scoutForm" class="screenbar one">
+          <div class="field"><label for="scoutN">Combien</label><input id="scoutN" type="number" min="1" max="10" value="8"></div>
+          <button class="btn ghost" type="submit" id="scoutRun">Lancer la ronde</button>
+        </form>
+        <p class="note" id="scoutOut" hidden></p>
+        <div id="scoutList" class="drafts"></div>
+        <div id="scoutSkip" class="skips"></div>
+
+        <div class="sec-head" style="margin-top:44px">
+          <p class="eyebrow">Qui démarcher</p>
+          <h2>Les contrats qui passent</h2>
+          <p class="note">Ceux qui obtiendraient un siège. Rien n'est publié ni envoyé : c'est une liste que vous lisez, et des messages que vous écrivez à la main. Trois par jour suffisent.</p>
+        </div>
+        <div id="leads" class="drafts"></div>
+        <p class="note" id="leadsEmpty" hidden>Aucun prospect dans la dernière ronde. Relancez-la.</p>
+
+        <div class="sec-head" style="margin-top:44px">
+          <p class="eyebrow">Le mois</p>
+          <h2>Récapitulatif</h2>
+          <p class="note">Rédigé automatiquement le dernier jour du mois. Des comptes, pas des adjectifs — et si le mois a été vide, le post le dit.</p>
+        </div>
+        <div id="recap" class="drafts"></div>
+        <button class="btn ghost" id="recapRun" type="button" style="width:auto;margin-top:16px">Recalculer le mois en cours</button>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="eyebrow">À publier</p>
+          <h2>Posts prêts</h2>
+          <p class="note">Rédigés à partir des faits du screener, jamais du modèle. Vous copiez, vous collez sur X. Aucune clé d'API, aucun post qui part tout seul. <a href="/refused">Le registre public des refus.</a></p>
+        </div>
+        <form id="screenForm" class="screenbar">
+          <div class="field"><label for="scTicker">Ticker</label><input id="scTicker" maxlength="12" placeholder="FROG" required></div>
+          <div class="field"><label for="scMint">Adresse du contrat</label><input id="scMint" maxlength="60" placeholder="9cRC…pump" required></div>
+          <button class="btn ghost" type="submit" id="scRun">Passer aux checks</button>
+        </form>
+        <p class="note" id="scOut" hidden></p>
+        <div id="drafts" class="drafts"><p class="note mono">chargement…</p></div>
+        <p class="note" id="draftsEmpty" hidden>Rien à dire aujourd'hui. C'est une réponse valable.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="eyebrow">Ce que le mur a dit en public</p>
+          <h2>Registre des refus</h2>
+          <p class="note">Toutes les lignes, y compris celles déjà publiées ou retirées. Retirer ne supprime pas : la ligne reste ici, elle cesse d'être servie sur <a href="/refused">la page publique</a>.</p>
+        </div>
+        <div class="tablewrap" style="margin-top:22px">
+          <table>
+            <thead><tr><th>Quand</th><th>Ticker</th><th>Motif</th><th>Origine</th><th>État</th><th>Action</th></tr></thead>
+            <tbody id="ledger"><tr><td colspan="6" class="mono">chargement…</td></tr></tbody>
+          </table>
+        </div>
+        <p class="note" id="ledgerEmpty" hidden>Le registre est vide.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="eyebrow">À traiter</p>
+          <h2>File de relecture</h2>
+          <p class="note">Tant que ces lignes restent en attente, aucun agent ne peut graduer : la graduation se calcule sur des sorties relues par un humain. C'est vous, l'humain.</p>
+        </div>
+        <div class="tablewrap" style="margin-top:22px">
+          <table>
+            <thead><tr><th>Quand</th><th>Agent</th><th>Motif</th><th>Contenu</th><th>Action</th></tr></thead>
+            <tbody id="queue"><tr><td colspan="5" class="mono">chargement…</td></tr></tbody>
+          </table>
+        </div>
+        <p class="note" id="queueEmpty" hidden>Rien en attente.</p>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="eyebrow">Argent qui n'appartient à personne</p>
+          <h2>Paiements non réclamés</h2>
+          <p class="note">Un virement arrivé sur la trésorerie qu'aucune commande ne réclame : mauvais montant, ou paiement arrivé après l'expiration. La personne a payé et n'a rien reçu. Remboursez-la depuis Phantom, puis marquez la ligne.</p>
+        </div>
+        <div class="tablewrap" style="margin-top:22px">
+          <table>
+            <thead><tr><th>Quand</th><th>Montant</th><th>Expéditeur</th><th>Transaction</th><th>Action</th></tr></thead>
+            <tbody id="unclaimed"><tr><td colspan="5" class="mono">chargement…</td></tr></tbody>
+          </table>
+        </div>
+        <p class="note" id="unclaimedEmpty" hidden>Rien à rembourser.</p>
+        <button class="btn ghost" id="sweep" style="width:auto;margin-top:16px">Chercher maintenant</button>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="eyebrow">Autonomie</p>
+          <h2>Graduation des agents</h2>
+          <p class="note">Un agent sort de supervision quand son historique relu franchit les seuils, et y retombe à la première sortie bloquée.</p>
+        </div>
+        <div class="ops" id="ops" style="margin-top:22px"></div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="sec-head">
+          <p class="eyebrow">À votre appréciation</p>
+          <h2>Sièges repris</h2>
+          <p class="note">Un siège est garanti à son acheteur pendant la durée de protection réglée dans deploy.env. Passé ce délai, il peut être repris — et quelqu'un repris trop vite après la fin de sa protection peut légitimement se sentir lésé. Cette liste existe pour que vous puissiez en juger et rembourser si vous l'estimez juste. Les durées inférieures à deux heures sont signalées.</p>
+        </div>
+        <div class="tablewrap" style="margin-top:22px">
+          <table>
+            <thead><tr><th>Quand</th><th>Siège</th><th>Délogé</th><th>Avait payé</th><th>A tenu</th><th>Repris par</th></tr></thead>
+            <tbody id="takeovers"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="sec-head"><p class="eyebrow">Ventes</p><h2>Commandes récentes</h2></div>
+        <div class="tablewrap" style="margin-top:22px">
+          <table>
+            <thead><tr><th>Quand</th><th>Siège</th><th>Ticker</th><th>Statut</th><th>Montant</th><th>Motif</th></tr></thead>
+            <tbody id="orders"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <section>
+      <div class="wrap">
+        <div class="sec-head"><p class="eyebrow">Journal</p><h2>Décisions des agents</h2></div>
+        <div class="tablewrap" style="margin-top:22px">
+          <table>
+            <thead><tr><th>Quand</th><th>Agent</th><th>Action</th><th>Détail</th></tr></thead>
+            <tbody id="audit"></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+  </div>
+</main>
+
+<footer class="wrap">Back-office — ne pas partager cette URL avec le jeton.</footer>
+<script type="module" src="/js/admin.js"></script>
+</body>
+</html>

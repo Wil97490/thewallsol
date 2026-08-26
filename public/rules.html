@@ -1,0 +1,210 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>The rules — The Wall</title>
+<meta name="description" content="Every check that decides whether a seat can be sold, written out in full.">
+<link rel="canonical" href="https://thewallsol.com/rules">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="The Wall">
+<meta property="og:url" content="https://thewallsol.com/rules">
+<meta property="og:title" content="The rules — The Wall">
+<meta property="og:description" content="Every check that decides whether a seat can be sold, written out in full.">
+<meta property="og:image" content="https://thewallsol.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Wall — twenty-four numbered seats, none sold without a check.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="The rules — The Wall">
+<meta name="twitter:description" content="Every check that decides whether a seat can be sold, written out in full.">
+<meta name="twitter:image" content="https://thewallsol.com/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,600;0,6..96,800;1,6..96,400&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/css/app.css">
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="mark" href="/"><svg class="glyph" viewBox="0 0 40 40" aria-hidden="true" focusable="false"><rect x="1.25" y="1.25" width="37.5" height="37.5" fill="none" stroke="var(--brass)" stroke-width="2.5"/><text x="20" y="29.5" text-anchor="middle" font-family="Bodoni Moda, Georgia, serif" font-size="27" font-weight="800" fill="currentColor">№</text></svg>THE WALL <span>the rules</span></a>
+    <nav class="nav"><a href="/">The wall</a><a href="/refused">Refused</a><a href="/rules#no-token">No token</a></nav>
+    <button class="pill" id="theme" type="button">Theme</button>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <h1>Every rule that can <em>refuse you.</em></h1>
+    <p class="sub">A screening you can't read is a marketing claim. These are the exact checks, in the order they run, with the numbers this instance is running right now.</p>
+  </div>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Refused — no price, at any price</p>
+        <h2>Hard rules</h2>
+        <p class="note">Failing any one of these means the seat is not for sale. There is no override in the product, and no amount of money changes the answer.</p>
+      </div>
+      <div class="tablewrap" style="margin-top:22px">
+        <table>
+          <thead><tr><th>Check</th><th>Refused when</th><th>Why it's a hard rule</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">mint authority</td><td class="mono">still open</td><td>Whoever holds it can print supply after you buy the seat.</td></tr>
+            <tr><td class="mono">freeze authority</td><td class="mono">still open</td><td>Whoever holds it can freeze holders out of their own tokens.</td></tr>
+            <tr><td class="mono">liquidity lock</td><td class="mono">measured, and not locked</td><td>We read the LP supply and the burn is short. A lock we simply <em>cannot read</em> is a different row — see below.</td></tr>
+            <tr><td class="mono">pool</td><td class="mono">none exists</td><td>No Solana pool means there is nothing to trade against.</td></tr>
+            <tr><td class="mono">pool depth</td><td class="mono">under <span data-cfg="minLpUsd">—</span></td><td>Below this a single sell empties the book.</td></tr>
+            <tr><td class="mono">largest wallet</td><td class="mono">over <span data-cfg="maxTopHolderPct">—</span>% of supply</td><td>One wallet on the float is one decision away from the exit. Pools and the burn address are excluded first.</td></tr>
+            <tr><td class="mono">destination link</td><td class="mono">404, 410, or 5xx</td><td>A seat pointing at a page that is gone or broken is an advert we can't stand behind. A link that never answers <em>us</em> may be our network, so it is flagged instead.</td></tr>
+            <tr><td class="mono">link safety</td><td class="mono">flagged malicious</td><td>A drainer behind our traffic is not a moderation incident. If the safety check could not <em>run</em>, that is our failure and the sale is held, not refused.</td></tr>
+            <tr><td class="mono">ticker</td><td class="mono">already on the wall</td><td>Two seats with the same ticker make the wall useless.</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Sellable — and the badge says so</p>
+        <h2>Soft flags</h2>
+        <p class="note">These don't stop a sale. They print under your ticker, publicly, for as long as you hold the seat.</p>
+        <p class="note" style="margin-top:14px">A seat is held for <span data-cfg="holdMinutes">—</span> minutes while it is being paid for, and frees itself the second that runs out. Long enough to open a wallet and confirm; not long enough to park a seat you have no intention of buying.</p>
+      </div>
+      <div class="tablewrap" style="margin-top:22px">
+        <table>
+          <thead><tr><th>Flag</th><th>Shown when</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">thin liquidity</td><td class="mono">pool under <span data-cfg="flagLpUsd">—</span></td></tr>
+            <tr><td class="mono">young pool</td><td class="mono">under <span data-cfg="flagAgeHours">—</span> hours old</td></tr>
+            <tr><td class="mono">concentrated</td><td class="mono">largest wallet over <span data-cfg="flagTopHolderPct">—</span>%</td></tr>
+            <tr><td class="mono">redirecting link</td><td class="mono">the link doesn't land where it says</td></tr>
+            <tr><td class="mono">unverified destination</td><td class="mono">the link answered 401, 403 or 429 to our checker — common behind a bot filter, so we say so rather than refuse</td></tr>
+            <tr><td class="mono">launchpad lock</td><td class="mono">liquidity locked by migration, not independently</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">You name the price</p>
+        <h2>What a seat costs</h2>
+        <p class="note">There is no price list. The number under a ticker is what somebody actually paid for it.</p>
+      </div>
+      <div class="tablewrap" style="margin-top:22px">
+        <table>
+          <thead><tr><th>Situation</th><th>The least you may pay</th></tr></thead>
+          <tbody>
+            <tr><td>An empty seat</td><td class="mono">$<span data-cfg="floorUsd">—</span></td></tr>
+            <tr><td>A seat somebody is sitting on</td><td class="mono">their price, plus <span data-cfg="incPct">—</span>% or $<span data-cfg="incUsd">—</span> — whichever is larger</td></tr>
+            <tr><td>Above that</td><td class="mono">whatever you like, up to $<span data-cfg="maxBid">—</span></td></tr>
+            <tr><td>A seat bought less than <span data-cfg="protectMinutes">—</span> minutes ago</td><td class="mono">not for sale, at any price</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <div class="note" style="max-width:66ch;margin-top:18px;font-size:15px">
+        <p>The minimum increment is not there to take more of your money. It is there so a seat cannot be traded back and forth a cent at a time — which would earn the wall nothing, tell a reader nothing, and fill the hourly tape with noise.</p>
+        <p style="margin-top:14px"><strong>A seat you buy is yours for <span data-cfg="protectMinutes">—</span> minutes</strong>, whatever anyone else offers for it. Nobody can outbid you out of a seat you paid for four minutes ago — not for twice the price, not for a hundred times it. After that, the seat is takeable again at the prices above.</p>
+        <p style="margin-top:14px">Paying well above the minimum is the point of the mechanism, not an accident of it: the more you paid, the more it costs to take the seat from you, and the three most expensive seats get the large banners at the top of the wall. Size on this page is bought, and it is bought in public.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="unverified">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Our limits, stated as ours</p>
+        <h2>When a check cannot run</h2>
+        <p class="note">A rule can only refuse you on something we actually measured. Everything else is our problem, and it is named as our problem.</p>
+      </div>
+      <div class="tablewrap" style="margin-top:22px">
+        <table>
+          <thead><tr><th>Situation</th><th>What happens</th><th>Why</th></tr></thead>
+          <tbody>
+            <tr><td class="mono">the pool cannot be read</td><td class="mono">sale held, retry</td><td>An unread pool is not an empty pool. We will not print <span class="mono">$0</span> next to a token we failed to look at.</td></tr>
+            <tr><td class="mono">holders cannot be read</td><td class="mono">sale held, retry</td><td>Sampling nobody is not the same as finding one wallet on the float.</td></tr>
+            <tr><td class="mono">safety check cannot run</td><td class="mono">sale held, retry</td><td>Unchecked is not malicious. It only means our checker did not answer.</td></tr>
+            <tr><td class="mono">the DEX is not modelled</td><td class="mono">sellable, flagged</td><td>Retrying will not help — we simply cannot read that pool's lock yet. Refusing would punish a project for our blind spot, so the seat is sold with the gap printed on it. It never earns <span class="mono">SCREENED</span>.</td></tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="note" style="max-width:66ch;margin-top:18px">
+        Nothing in this table is ever written into the public refusal ledger. A refusal we publish is always something we measured about the contract — never something we failed to measure.
+      </p>
+    </div>
+  </section>
+
+  <section id="unsubmitted">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Contracts nobody sent us</p>
+        <h2>We check tokens that never asked</h2>
+        <p class="note">Most of what the ledger holds was never submitted. We pick contracts that are buying attention somewhere else and run the same gate on them. If you would rather know before we look: the rules are all on this page, and they do not change for you.</p>
+      </div>
+
+      <div class="pledge">
+        <p><strong>How they are chosen.</strong> From public lists of projects paying for visibility — boosted listings, ads, claimed profiles. Not from tips, not from grudges, not from anyone paying us. A contract is checked once.</p>
+        <p><strong>What runs.</strong> The identical rules above, on the identical facts, read from the chain. There is no separate, harsher screening for projects that did not buy a seat.</p>
+        <p><strong>What gets published.</strong> Findings only — something we measured about the contract. A refusal that turns on a limit of <em>ours</em> is never published against anyone. Neither is a refusal that rests only on a link, because nobody handed us that link for this purpose.</p>
+        <p><strong>What never gets published.</strong> A pass. If a contract nobody submitted clears every check, we say nothing at all — telling the world a token looks fine is a recommendation, and we do not make those about anything. The wall sells advertising space; it does not rate assets.</p>
+        <p class="pledge-last">Every published check is worded so you can tell the two apart: <span class="mono">refused at the gate</span> means a buyer was turned away. <span class="mono">not submitted — we ran the checks anyway</span> means nobody asked, and no money was involved.</p>
+      </div>
+
+      <p class="note" style="max-width:66ch;margin-top:18px">
+        If your contract is in the ledger and a line is wrong, write to <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a> with the mint. A measurement we got wrong comes down, and the correction is public.
+      </p>
+    </div>
+  </section>
+
+  <section id="no-token">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Read this before anyone sells you something</p>
+        <h2>The Wall has no token</h2>
+      </div>
+      <div class="pledge">
+        <p><strong>There is no $WALL. No presale, no allocation, no airdrop, no whitelist.</strong>
+        Any token trading under this name is not ours, and anyone offering you one — in a reply,
+        in a DM, in a group — is not us.</p>
+
+        <p>This is not modesty. A wall that screens tokens cannot also sell one: the moment we
+        hold a bag, every refusal we publish becomes an accusation of self-interest, and the
+        refusals are the only reason the badge means anything. So the answer is no, and it is
+        structural rather than temporary.</p>
+
+        <p>If that ever changes, it will be announced <strong>here, on this page, and on our
+        account</strong> — never first in a private message, never by someone asking you to send
+        anything to secure a place.</p>
+
+        <p class="pledge-last">The only payment this site will ever ask of you is the price of a
+        seat, in SOL, to the treasury address displayed at checkout. There is no second address.
+        If anyone tells you otherwise, write to <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a>
+        and we will say so publicly.</p>
+      </div>
+    </div>
+  </section>
+
+  <section>
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">What this is not</p>
+        <h2>The part everyone skips</h2>
+      </div>
+      <div class="note" style="max-width:66ch;margin-top:18px;font-size:15px">
+        <p>A badge means the checks above passed <strong>at the moment the seat was bought</strong>. It is not an audit, not an endorsement, and not a statement about what the token will do next. A team can pass every check on this page and still take your money — the checks close specific doors, they do not read intentions.</p>
+        <p style="margin-top:14px">A seat is advertising space. Nothing on this site is investment advice.</p>
+      </div>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap"><a href="/">Back to the wall</a> · <a href="/terms">Terms</a> · <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a></footer>
+<script type="module" src="/js/rules.js"></script>
+</body>
+</html>

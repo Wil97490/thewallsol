@@ -1,0 +1,71 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Refused — The Wall</title>
+<meta name="description" content="Every entry the gate turned away, with the measurement that turned it away. Published because a badge nobody can audit is a marketing claim.">
+<link rel="canonical" href="https://thewallsol.com/refused">
+<meta property="og:type" content="website">
+<meta property="og:site_name" content="The Wall">
+<meta property="og:url" content="https://thewallsol.com/refused">
+<meta property="og:title" content="Refused — The Wall">
+<meta property="og:description" content="Every entry the gate turned away, with the measurement that turned it away. Published because a badge nobody can audit is a marketing claim.">
+<meta property="og:image" content="https://thewallsol.com/og.png">
+<meta property="og:image:width" content="1200">
+<meta property="og:image:height" content="630">
+<meta property="og:image:alt" content="The Wall — twenty-four numbered seats, none sold without a check.">
+<meta name="twitter:card" content="summary_large_image">
+<meta name="twitter:title" content="Refused — The Wall">
+<meta name="twitter:description" content="Every entry the gate turned away, with the measurement that turned it away. Published because a badge nobody can audit is a marketing claim.">
+<meta name="twitter:image" content="https://thewallsol.com/og.png">
+<link rel="icon" href="/favicon.svg" type="image/svg+xml">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,600;0,6..96,800;1,6..96,400&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<link rel="stylesheet" href="/css/app.css">
+<script type="application/ld+json">
+{
+  "@context": "https://schema.org",
+  "@type": "Dataset",
+  "name": "The Wall — refusal ledger",
+  "url": "https://thewallsol.com/refused",
+  "description": "Every entry the checkout gate turned away, with the on-chain measurement that turned it away and the published rule it failed. Contract addresses are not republished.",
+  "creator": { "@type": "Organization", "name": "The Wall", "url": "https://thewallsol.com/" },
+  "isAccessibleForFree": true,
+  "license": "https://thewallsol.com/rules"
+}
+</script>
+</head>
+<body>
+<header class="topbar">
+  <div class="wrap topbar-in">
+    <a class="mark" href="/"><svg class="glyph" viewBox="0 0 40 40" aria-hidden="true" focusable="false"><rect x="1.25" y="1.25" width="37.5" height="37.5" fill="none" stroke="var(--brass)" stroke-width="2.5"/><text x="20" y="29.5" text-anchor="middle" font-family="Bodoni Moda, Georgia, serif" font-size="27" font-weight="800" fill="currentColor">№</text></svg>THE WALL <span>refused</span></a>
+    <nav class="nav"><a href="/">The wall</a><a href="/rules">The rules</a></nav>
+    <button class="pill" id="theme" type="button">Theme</button>
+  </div>
+</header>
+
+<main>
+  <div class="wrap hero">
+    <h1>What we <em>turned away.</em></h1>
+    <p class="sub">A badge nobody can audit is a marketing claim. So here is the other half of the ledger: every entry the gate refused, and the measurement that refused it. No opinion is recorded — only what the contract said at the moment it was read.</p>
+  </div>
+
+  <section id="ledger">
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">The ledger</p>
+        <h2>Refusals</h2>
+        <p class="note">The contract address is not republished here. This page exists to show what was measured, not to hand anyone an address. <a href="/rules">Every rule is published</a>, including <a href="/rules#unsubmitted">how we choose contracts nobody submitted</a>.</p>
+      </div>
+      <div class="refused" id="rows"><p class="note mono">loading…</p></div>
+      <p class="note" id="empty" hidden>Nothing refused yet. That will not last.</p>
+    </div>
+  </section>
+</main>
+
+<footer class="wrap"><a href="/">Back to the wall</a> · <a href="/rules#unsubmitted">Why unsubmitted contracts appear here</a> · <a href="/rules#no-token">The Wall has no token</a> · <a href="/terms">Terms</a> · <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a></footer>
+<script type="module" src="/js/refused.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "wall-agents",
+  "version": "0.33.0",
+  "type": "module",
+  "engines": {
+    "node": ">=20"
+  },
+  "scripts": {
+    "start": "node src/server.js",
+    "dev": "NODE_ENV=development STORAGE_BACKEND=file node --watch src/server.js",
+    "test": "NODE_ENV=test STORAGE_BACKEND=memory node --test test/*.test.js",
+    "check": "for f in $(find src test -name '*.js'); do node --check $f || exit 1; done && echo 'syntax ok'",
+    "preflight": "./scripts/preflight.sh",
+    "deploy": "./scripts/deploy.sh",
+    "scout": "./scripts/scout.sh"
+  },
+  "optionalDependencies": {
+    "@google-cloud/firestore": "^7.10.0"
+  },
+  "license": "MIT",
+  "description": "Twenty-four advertising seats. None sold without a check, and every refusal published.",
+  "homepage": "https://thewallsol.com"
+}
