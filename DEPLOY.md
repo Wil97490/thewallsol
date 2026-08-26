@@ -601,3 +601,32 @@ Puis, sur la page du dépôt, mettez `https://thewallsol.com` dans le champ
 
 Vérifié avant publication : aucun secret versionné. `data/` et
 `.scout.env` sont désormais dans `.gitignore`.
+
+## v4.34 — la page token, en divulgation
+
+L'équipe a lancé **$Wall** sur pump.fun le 26/08/2026 et en détient ~9,39 %.
+`/rules#no-token` affirmait le contraire et est resté en ligne une journée.
+C'est la seule ligne fausse qu'un site qui contrôle des contrats ne peut
+pas se permettre.
+
+`/rules#token` la remplace : le lancement, le pourcentage détenu, l'adresse
+du contrat **en toutes lettres**, ce que le token ne donne pas, et ce que le
+raisonnement « on l'a sorti avant les copies » vaut réellement — la page dit
+elle-même que c'est l'argument de tout le monde et que les copies sont
+arrivées quand même. Une justification affaiblit une divulgation ; on a
+gardé la raison et retiré la défense.
+
+**L'adresse est écrite, jamais liée.** La page sert à vérifier ce que
+l'équipe détient, pas à faciliter un achat. Un test interdit tout lien vers
+pump.fun depuis les pages du site.
+
+**Le mint est dans `EXCLUDED_MINTS`.** Le token de l'équipe ne peut ni
+entrer dans une ronde, ni obtenir un siège, ni être noté par ce gate. Un
+outil de contrôle qui note la chose que son opérateur détient n'en est plus
+un, quel que soit le verdict. Exclu dans le code plutôt que retenu de
+mémoire : « on ne le ferait jamais » n'est pas un mécanisme.
+
+Deux tests et deux sondes de preflight empêchent le retour de l'ancienne
+affirmation et la disparition de la nouvelle.
+
+Section « Ideas are welcome » ajoutée : e-mail et DM X.

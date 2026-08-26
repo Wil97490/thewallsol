@@ -214,6 +214,16 @@ export const EXCLUDED_MINTS = new Set([
   "27G8MtK7VtTcCHkpASjSDdkWWYfoqT6ggEuKidVJidD4", // JLP
   "DezXAZ8z7PnrnRJjz3wXBoRgixCa6xjnB7YaB1pPB263", // BONK
   "EKpQGSJtjMFqKZ9KQanSqYXRcF8fBopzLHYxdM65zcjm", // WIF
+
+  /* Our own token.
+   *
+   * The team launched $Wall on 26 August 2026 and holds part of the
+   * supply — see /rules#token. It must therefore never be a candidate:
+   * not in a round, not in a draft, not on the wall. A screening tool
+   * that grades the thing its operator holds is not a screening tool,
+   * whatever the verdict happens to be. Excluded here rather than
+   * remembered, because "we would never" is not a mechanism. */
+  "8nbF1nKD5uuVuMSZBGeRCGcihabcYvkvogq8QihVpump", // $Wall — ours
 ]);
 
 /* ---- eligibility ---------------------------------------------------

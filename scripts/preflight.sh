@@ -112,6 +112,14 @@ for path in "/" "/terms" "/rules" "/refused"; do
   fi
 done
 has "$URL/terms" "Refunds" "terms and refunds are published"
+# La page a affirme le contraire pendant une journee. Un site qui
+# controle des contrats ne peut pas se permettre cette ligne-la fausse.
+has "$URL/rules" "There is a token. We launched it." "the token disclosure is live"
+if curl -sf "$URL/rules" -o /tmp/pf_tok.html 2>/dev/null && grep -q "The Wall has no token" /tmp/pf_tok.html; then
+  fail "the site still claims it has no token"
+else
+  pass "the old no-token claim is gone"
+fi
 
 echo "· the daily round"
 code=$(curl -s -o /dev/null -w '%{http_code}' -X POST "$URL/api/admin/scout" -H 'content-type: application/json' -d '{}')

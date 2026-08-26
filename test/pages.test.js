@@ -222,3 +222,16 @@ test("le fichier de validation Search Console est présent et intact", () => {
   const body = fsp.readFileSync(file, "utf8").trim();
   assert.equal(body, "google-site-verification: " + name);
 });
+
+test("la page des règles ne peut plus affirmer qu'il n'y a pas de token", () => {
+  // Elle l'a affirmé pendant une journée après le lancement. Un site qui
+  // contrôle des contrats survit à beaucoup de choses, pas à celle-là.
+  const html = fsp.readFileSync(new URL("../public/rules.html", import.meta.url).pathname, "utf8");
+  assert.doesNotMatch(html, /The Wall has no token/);
+  assert.doesNotMatch(html, /There is no \$WALL/);
+  assert.match(html, /There is a token\. We launched it\./);
+  assert.match(html, /8nbF1nKD5uuVuMSZBGeRCGcihabcYvkvogq8QihVpump/);
+  // L'adresse est écrite pour vérifier, jamais pour acheter : la page ne
+  // devient pas un chemin vers pump.fun.
+  assert.doesNotMatch(html, /href="https?:\/\/pump\.fun/);
+});

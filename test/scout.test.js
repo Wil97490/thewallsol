@@ -549,3 +549,16 @@ test("the eligibility floor is a reach filter, never a quality one", () => {
   assert.ok(!/verdict\s*[:=]\s*["']clear["']/.test(src), "scout.js hands out a verdict");
   assert.ok(!/lpLocked\s*[:=]\s*true/.test(src), "scout.js asserts a lock");
 });
+
+test("notre propre token ne peut jamais être un candidat", () => {
+  // L'équipe détient du $Wall (voir /rules#token). Un outil de contrôle
+  // qui note la chose que son opérateur détient n'est plus un outil de
+  // contrôle, quel que soit le verdict rendu. Exclu dans le code plutôt
+  // que retenu de mémoire : « on ne le ferait jamais » n'est pas un
+  // mécanisme.
+  const OURS = "8nbF1nKD5uuVuMSZBGeRCGcihabcYvkvogq8QihVpump";
+  assert.ok(EXCLUDED_MINTS.has(OURS), "le token de l'équipe peut entrer dans une ronde");
+  const e = eligible(loud({ mint: OURS }));
+  assert.equal(e.ok, false);
+  assert.equal(e.kind, "excluded");
+});
