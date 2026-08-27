@@ -8,8 +8,9 @@ import { screen, publicBadge } from "./agents/screener.js";
 import { moderate } from "./agents/moderator.js";
 import { writeTape } from "./agents/tape.js";
 import { compose, probeDraft, monthlyDraft } from "./agents/poster.js";
-import { shortlist, postWorth, oneADay, prospects, mergeProspects, outreachDraft } from "./agents/scout.js";
-import { refusalPage, refusalGonePage, refusalMissingPage, sitemap } from "./pages.js";
+import { shortlist, enrich, audience, postWorth, oneADay, prospects, mergeProspects, outreachDraft,
+         aggregate, pushNight, totals } from "./agents/scout.js";
+import { refusalPage, refusalGonePage, refusalMissingPage, seenPage, checkPage, checksIndexPage, sitemap } from "./pages.js";
 import { report } from "./agents/reporter.js";
 import { gatherFacts } from "./facts.js";
 import { progress, reinstate } from "./graduation.js";
@@ -255,6 +256,15 @@ export async function scoutRound({ limit = 8, cache = false } = {}) {
   // `checked`, and a state document is not a place to keep a payload
   // growing at whatever size the market feels like today.
   if (cache) {
+    /* La nuit est archivée sous forme agrégée — aucun ticker, aucune
+     * adresse. C'est ce qui alimente /seen, et c'est la seule façon
+     * honnête de publier les vingt-trois mesures que la ronde jette. */
+    try {
+      const hist = await db.getState("scout:seen-history");
+      await db.setState("scout:seen-history", pushNight(hist, aggregate(round)));
+    } catch (err) {
+      await audit("scout", "history_not_saved", { err: String(err.message || err).slice(0, 200) });
+    }
     try {
       await db.setState("scout:latest", { ...round, shortlist: round.shortlist.length });
     } catch (err) {
@@ -652,6 +662,30 @@ const server = http.createServer(async (req, res) => {
         rows: rows.map((r) => ({ at: r.at, ticker: r.ticker, mint: r.mint || null, reasons: r.reasons, ruleIds: r.ruleIds, source: r.source || "gate", slug: r.slug || null })),
       });
     }
+    /* The reference pages. Static text, no storage, no data — so they
+     * are served here rather than from a file, which keeps the
+     * thresholds they print in step with config instead of with
+     * whatever was true the day somebody wrote the HTML. */
+    if (req.method === "GET" && p === "/checks") {
+      res.setHeader("cache-control", "public, max-age=3600");
+      return text(res, 200, checksIndexPage(), "text/html; charset=utf-8");
+    }
+    if (req.method === "GET" && p.startsWith("/checks/")) {
+      const slug = decodeURIComponent(p.slice("/checks/".length)).replace(/\/+$/, "");
+      const html = slug ? checkPage(slug) : null;
+      if (!html) {
+        res.setHeader("cache-control", "public, max-age=300");
+        return text(res, 404, checksIndexPage(), "text/html; charset=utf-8");
+      }
+      res.setHeader("cache-control", "public, max-age=3600");
+      return text(res, 200, html, "text/html; charset=utf-8");
+    }
+    if (req.method === "GET" && p === "/seen") {
+      const hist = (await db.getState("scout:seen-history")) || [];
+      const html = seenPage({ last: hist[0] || null, history: hist, totals: totals(hist) });
+      res.setHeader("cache-control", "public, max-age=900");
+      return text(res, 200, html, "text/html; charset=utf-8");
+    }
     if (req.method === "GET" && p === "/api/config") {
       return json(res, 200, {
         seatCount: config.seatCount, floorUsd: config.seatFloorUsd,
@@ -773,6 +807,23 @@ const server = http.createServer(async (req, res) => {
       // uses it to look at a dozen contracts a day without turning the
       // public ledger into a firehose — the ledger is a record of what
       // we decided to publish, not of every query we ever ran.
+      /* Un check manuel n'a pas de lien à donner — le formulaire du back
+       * office demande un ticker et une adresse, c'est tout. Depuis que
+       * `link_absent` existe, cela suffisait à rendre TOUT check manuel
+       * impossible : pas de lien, donc la vérification du lien ne tourne
+       * pas, donc `incomplete`, donc rien.
+       *
+       * La ronde, elle, sait où trouver un lien : celui que le projet
+       * publie sur sa propre fiche. Le chemin manuel fait pareil, plutôt
+       * que d'exiger d'un humain qu'il aille le chercher à la main. */
+      let link = body.link || null;
+      let linkFrom = link ? "supplied" : null;
+      let market = null;
+      try {
+        [market] = await enrich([mint], { ms: config.rpcTimeoutMs * 2 });
+        if (!link && market?.link) { link = market.link; linkFrom = "discovered"; }
+      } catch { /* pas de fiche : le verdict le dira, et il n'y aura pas de contact */ }
+
       /* record:false always, on purpose. The ledger entry is written
        * further down instead — but only once postWorth() has agreed the
        * finding is publishable. The ledger IS the published page: every
@@ -781,7 +832,7 @@ const server = http.createServer(async (req, res) => {
        * refusal page carrying a finding we had already judged too weak
        * to post. */
       const out = await checkoutGate({
-        fields: { ticker, mint, link: body.link || null, pitch: null, seatNo: null },
+        fields: { ticker, mint, link, pitch: null, seatNo: null },
         via: "probe",
         record: false,
       });
@@ -828,9 +879,53 @@ const server = http.createServer(async (req, res) => {
         recorded = true;
       }
 
+      /* Un contrat qui PASSE n'est pas une impasse : c'est exactement le
+       * profil qu'on veut démarcher. Le back office s'arrêtait sur « rien
+       * à publier », ce qui était vrai et inutile — on ne publie pas,
+       * mais on écrit à quelqu'un.
+       *
+       * Le brouillon vient du même outreachDraft() que la ronde : une
+       * seule formulation, qui ne peut pas dériver entre les deux
+       * chemins. */
+      let outreach = null, links = null, added = false;
+      if (out.allow) {
+        const [wallNow, contactedState, standingState] = await Promise.all([
+          wall.publicWall(),
+          db.getState("scout:contacted"),
+          db.getState("scout:prospects"),
+        ]);
+        const seatUsd = wallNow
+          .map((x) => (x.status === "taken" ? wall.minimumBid(x) : config.seatFloorUsd))
+          .sort((a, b) => a - b)[0] ?? config.seatFloorUsd;
+
+        links = market?.links || null;
+        outreach = guarded(outreachDraft({ ticker, verdict, reasons, seatUsd }));
+
+        const contacted = new Set(Array.isArray(contactedState) ? contactedState.map((x) => x?.mint) : []);
+        // Déjà écrit à ce projet ? On ne le remet pas dans la file.
+        if (!contacted.has(mint) && body.dry !== true) {
+          const lead = {
+            mint, ticker, verdict, reasons, seatUsd, outreach, links,
+            vol24Usd: market?.vol24Usd ?? out.facts?.vol24Usd ?? 0,
+            lpUsd: market?.lpUsd ?? out.facts?.lpUsd ?? 0,
+            fdvUsd: market?.fdvUsd ?? 0, dexId: market?.dexId ?? null,
+            ageHours: market?.ageHours == null ? null : Math.round(market.ageHours),
+            via: ["manual"], audience: market ? audience(market) : 0,
+          };
+          const next = mergeProspects(standingState, [lead], { contacted });
+          try { await db.setState("scout:prospects", next); added = true; }
+          catch (err) { await audit("scout", "prospects_not_saved", { err: String(err.message || err).slice(0, 300) }); }
+        }
+      }
+
       return json(res, 200, {
         allow: Boolean(out.allow), badge: out.badge || null, verdict,
         reasons,
+        outreach, links, addedToProspects: added,
+        // D'où vient le lien vérifié : fourni, trouvé, ou absent. Sans
+        // cette ligne, personne ne peut savoir SUR QUOI la vérification
+        // du lien a porté.
+        link, linkFrom,
         post: worth.post,
         recorded,
         withheld: worth.post ? null : worth.why,

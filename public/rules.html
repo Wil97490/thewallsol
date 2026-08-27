@@ -29,7 +29,8 @@
 <header class="topbar">
   <div class="wrap topbar-in">
     <a class="mark" href="/"><svg class="glyph" viewBox="0 0 40 40" aria-hidden="true" focusable="false"><rect x="1.25" y="1.25" width="37.5" height="37.5" fill="none" stroke="var(--brass)" stroke-width="2.5"/><text x="20" y="29.5" text-anchor="middle" font-family="Bodoni Moda, Georgia, serif" font-size="27" font-weight="800" fill="currentColor">№</text></svg>THE WALL <span>the rules</span></a>
-    <nav class="nav"><a href="/">The wall</a><a href="/refused">Refused</a><a href="/rules#token">The token</a></nav>
+    <nav class="nav"><a href="/">The wall</a><a href="/seen">Seen</a>
+      <a href="/refused">Refused</a><a href="/rules#token">The token</a></nav>
     <button class="pill" id="theme" type="button">Theme</button>
   </div>
 </header>
@@ -46,19 +47,20 @@
         <p class="eyebrow">Refused — no price, at any price</p>
         <h2>Hard rules</h2>
         <p class="note">Failing any one of these means the seat is not for sale. There is no override in the product, and no amount of money changes the answer.</p>
+        <p class="note" style="margin-top:12px">Each check below has <a href="/checks">a page of its own</a>: what it measures, and the exact call to run it yourself against a public Solana RPC.</p>
       </div>
       <div class="tablewrap" style="margin-top:22px">
         <table>
           <thead><tr><th>Check</th><th>Refused when</th><th>Why it's a hard rule</th></tr></thead>
           <tbody>
-            <tr><td class="mono">mint authority</td><td class="mono">still open</td><td>Whoever holds it can print supply after you buy the seat.</td></tr>
-            <tr><td class="mono">freeze authority</td><td class="mono">still open</td><td>Whoever holds it can freeze holders out of their own tokens.</td></tr>
-            <tr><td class="mono">liquidity lock</td><td class="mono">measured, and not locked</td><td>We read the LP supply and the burn is short. A lock we simply <em>cannot read</em> is a different row — see below.</td></tr>
-            <tr><td class="mono">pool</td><td class="mono">none exists</td><td>No Solana pool means there is nothing to trade against.</td></tr>
-            <tr><td class="mono">pool depth</td><td class="mono">under <span data-cfg="minLpUsd">—</span></td><td>Below this a single sell empties the book.</td></tr>
-            <tr><td class="mono">largest wallet</td><td class="mono">over <span data-cfg="maxTopHolderPct">—</span>% of supply</td><td>One wallet on the float is one decision away from the exit. Pools and the burn address are excluded first.</td></tr>
-            <tr><td class="mono">destination link</td><td class="mono">404, 410, or 5xx</td><td>A seat pointing at a page that is gone or broken is an advert we can't stand behind. A link that never answers <em>us</em> may be our network, so it is flagged instead.</td></tr>
-            <tr><td class="mono">link safety</td><td class="mono">flagged malicious</td><td>A drainer behind our traffic is not a moderation incident. If the safety check could not <em>run</em>, that is our failure and the sale is held, not refused.</td></tr>
+            <tr><td class="mono"><a href="/checks/mint-authority">mint authority</a></td><td class="mono">still open</td><td>Whoever holds it can print supply after you buy the seat.</td></tr>
+            <tr><td class="mono"><a href="/checks/freeze-authority">freeze authority</a></td><td class="mono">still open</td><td>Whoever holds it can freeze holders out of their own tokens.</td></tr>
+            <tr><td class="mono"><a href="/checks/liquidity-lock">liquidity lock</a></td><td class="mono">measured, and not locked</td><td>We read the LP supply and the burn is short. A lock we simply <em>cannot read</em> is a different row — see below.</td></tr>
+            <tr><td class="mono"><a href="/checks/pool-depth">pool</a></td><td class="mono">none exists</td><td>No Solana pool means there is nothing to trade against.</td></tr>
+            <tr><td class="mono"><a href="/checks/pool-depth">pool depth</a></td><td class="mono">under <span data-cfg="minLpUsd">—</span></td><td>Below this a single sell empties the book.</td></tr>
+            <tr><td class="mono"><a href="/checks/holder-concentration">largest wallet</a></td><td class="mono">over <span data-cfg="maxTopHolderPct">—</span>% of supply</td><td>One wallet on the float is one decision away from the exit. Pools and the burn address are excluded first.</td></tr>
+            <tr><td class="mono"><a href="/checks/destination-link">destination link</a></td><td class="mono">404, 410, or 5xx</td><td>A seat pointing at a page that is gone or broken is an advert we can't stand behind. A link that never answers <em>us</em> may be our network, so it is flagged instead.</td></tr>
+            <tr><td class="mono"><a href="/checks/destination-link">link safety</a></td><td class="mono">flagged malicious</td><td>A drainer behind our traffic is not a moderation incident. If the safety check could not <em>run</em>, that is our failure and the sale is held, not refused.</td></tr>
             <tr><td class="mono">ticker</td><td class="mono">already on the wall</td><td>Two seats with the same ticker make the wall useless.</td></tr>
           </tbody>
         </table>
@@ -78,12 +80,12 @@
         <table>
           <thead><tr><th>Flag</th><th>Shown when</th></tr></thead>
           <tbody>
-            <tr><td class="mono">thin liquidity</td><td class="mono">pool under <span data-cfg="flagLpUsd">—</span></td></tr>
-            <tr><td class="mono">young pool</td><td class="mono">under <span data-cfg="flagAgeHours">—</span> hours old</td></tr>
-            <tr><td class="mono">concentrated</td><td class="mono">largest wallet over <span data-cfg="flagTopHolderPct">—</span>%</td></tr>
-            <tr><td class="mono">redirecting link</td><td class="mono">the link doesn't land where it says</td></tr>
-            <tr><td class="mono">unverified destination</td><td class="mono">the link answered 401, 403 or 429 to our checker — common behind a bot filter, so we say so rather than refuse</td></tr>
-            <tr><td class="mono">launchpad lock</td><td class="mono">liquidity locked by migration, not independently</td></tr>
+            <tr><td class="mono"><a href="/checks/pool-depth">thin liquidity</a></td><td class="mono">pool under <span data-cfg="flagLpUsd">—</span></td></tr>
+            <tr><td class="mono"><a href="/checks/pair-age">young pool</a></td><td class="mono">under <span data-cfg="flagAgeHours">—</span> hours old</td></tr>
+            <tr><td class="mono"><a href="/checks/holder-concentration">concentrated</a></td><td class="mono">largest wallet over <span data-cfg="flagTopHolderPct">—</span>%</td></tr>
+            <tr><td class="mono"><a href="/checks/destination-link">redirecting link</a></td><td class="mono">the link doesn't land where it says</td></tr>
+            <tr><td class="mono"><a href="/checks/destination-link">unverified destination</a></td><td class="mono">the link answered 401, 403 or 429 to our checker — common behind a bot filter, so we say so rather than refuse</td></tr>
+            <tr><td class="mono"><a href="/checks/liquidity-lock">launchpad lock</a></td><td class="mono">liquidity locked by migration, not independently</td></tr>
           </tbody>
         </table>
       </div>
@@ -210,7 +212,7 @@
   </section>
 </main>
 
-<footer class="wrap"><a href="/">Back to the wall</a> · <a href="/terms">Terms</a> · <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a></footer>
+<footer class="wrap"><a href="/">Back to the wall</a> · <a href="/checks">Run these checks yourself</a> · <a href="/terms">Terms</a> · <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a></footer>
 <script type="module" src="/js/rules.js"></script>
 </body>
 </html>

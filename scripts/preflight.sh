@@ -73,6 +73,37 @@ probe "clean token sells"      200 '{}'
 # destination link was supplied" when nobody had supplied anything.
 # So this probe reads the body.
 # ---------------------------------------------------------------------
+# ---------------------------------------------------------------------
+# Les pages publiques répondent-elles VRAIMENT ?
+#
+# /seen est parti en production avec un import manquant : 503 à chaque
+# visite, et la suite de tests au vert — elle appelait la fonction de
+# rendu, jamais la route. Le preflight teste la révision réelle.
+# ---------------------------------------------------------------------
+echo "· les pages publiques répondent sur la révision candidate"
+for pair in "/:seats" "/rules:Hard rules" "/refused:refused" "/seen:What the wall" \
+            "/checks:how to run them" \
+            "/checks/mint-authority:mintAuthority" \
+            "/checks/freeze-authority:freezeAuthority" \
+            "/checks/liquidity-lock:1nc1nerator" \
+            "/checks/holder-concentration:getTokenLargestAccounts" \
+            "/checks/pool-depth:dexscreener" \
+            "/checks/pair-age:pairCreatedAt" \
+            "/checks/destination-link:curl -sI" \
+            "/terms:Terms" "/sitemap.xml:<urlset"; do
+  path="${pair%%:*}"; needle="${pair#*:}"
+  code=$(curl -s -o /tmp/pf-page -w '%{http_code}' "$URL$path")
+  if [ "$code" != "200" ]; then
+    fail "$(printf '%-14s %s' "$path" "a répondu $code")"
+  elif grep -qi "Checks unavailable" /tmp/pf-page; then
+    fail "$(printf '%-14s %s' "$path" "200 mais la route a planté")"
+  elif ! grep -qi -- "$needle" /tmp/pf-page; then
+    fail "$(printf '%-14s %s' "$path" "200 mais sans son contenu")"
+  else
+    pass "$(printf '%-14s %s' "$path" "200")"
+  fi
+done
+
 echo "· a missing link is our gap, not their finding"
 payload=$(jq -nc --argjson f "$(facts '{"linkThreat":"missing","linkStatus":0}')" \
   '{fields:{ticker:"PREFLIGHT",pitch:"preflight probe",link:null,mint:"So11111111111111111111111111111111111111112"},facts:$f}')
@@ -133,7 +164,7 @@ code=$(curl -s -o /dev/null -w '%{http_code}' "$URL$(curl -sf "$URL/" | grep -o 
 # `script-src 'self'` refuse tout script en ligne, en silence : le
 # serveur répond 200 et la fonctionnalite est simplement absente. Deux
 # pages ont ete livrees comme ca le meme jour.
-for path in "/" "/terms" "/rules" "/refused"; do
+for path in "/" "/terms" "/rules" "/refused" "/checks" "/checks/pool-depth"; do
   curl -sf "$URL$path" -o /tmp/pf_csp.html 2>/dev/null || continue
   if grep -oE '<script(([^>]*)(src=)([^>]*))?>' /tmp/pf_csp.html \
      | grep -v 'src=' | grep -v 'application/ld+json' | grep -q '<script'; then
@@ -146,6 +177,21 @@ has "$URL/terms" "Refunds" "terms and refunds are published"
 # La page a affirme le contraire pendant une journee. Un site qui
 # controle des contrats ne peut pas se permettre cette ligne-la fausse.
 has "$URL/rules" "There is a token. We launched it." "the token disclosure is live"
+
+# Le maillage : une page de refus dont les constats ne renvoient nulle
+# part est une page de reference sans reference. C'est tout l'interet de
+# /checks, et c'est silencieux quand ca casse.
+if curl -sf "$URL/api/refused" -o /tmp/pf_led.json 2>/dev/null; then
+  slug=$(grep -o '"slug":"[^"]*"' /tmp/pf_led.json | head -1 | cut -d'"' -f4)
+  if [ -n "$slug" ]; then
+    if curl -sf "$URL/refused/$slug" -o /tmp/pf_ref.html 2>/dev/null \
+       && grep -q 'href="/checks/' /tmp/pf_ref.html; then
+      pass "$(printf '%-24s renvoie vers ses controles' "/refused/$slug")"
+    else
+      fail "/refused/$slug ne renvoie vers aucune page de controle"
+    fi
+  fi
+fi
 if curl -sf "$URL/rules" -o /tmp/pf_tok.html 2>/dev/null && grep -q "The Wall has no token" /tmp/pf_tok.html; then
   fail "the site still claims it has no token"
 else

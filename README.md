@@ -7,7 +7,7 @@ reads the mint, the pool and the destination link.
 **If it cannot establish a fact, it does not sell the seat.** Every rule is
 published, and so is every refusal.
 
-→ **[thewallsol.com](https://thewallsol.com)** · [the rules](https://thewallsol.com/rules) · [the refusal ledger](https://thewallsol.com/refused)
+→ **[thewallsol.com](https://thewallsol.com)** · [the rules](https://thewallsol.com/rules) · [the refusal ledger](https://thewallsol.com/refused) · [run the checks yourself](https://thewallsol.com/checks)
 
 ---
 
@@ -95,6 +95,7 @@ src/
   wall.js            seats, takeover prices, holds, history
   payments.js        price in USD, payment in SOL, verified on chain
   pages.js           server-rendered pages — the half a crawler can read
+  checks.js          what each check measures, and the call to reproduce it
   storage.js         memory | file | firestore, one interface
   guardrails.js      kill switches, banned phrasings, human queue, quotas
   graduation.js      an agent's autonomy, earned on evidence
@@ -106,7 +107,7 @@ src/
     scout.js         which contracts to check today. Proposes, decides nothing.
     poster.js        drafts posts. Never promotes.
 public/              the site: the wall, the rules, the ledger, the back office
-test/                the release gate — 269 tests, no key required
+test/                the release gate — 352 tests, no key required
 scripts/             preflight (against the deployed instance), deploy, scout
 ```
 

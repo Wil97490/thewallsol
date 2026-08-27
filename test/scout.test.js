@@ -733,3 +733,31 @@ describe("the outreach message states the verdict it actually got", () => {
     assert.match(outreachDraft({ ticker: "AAA", verdict: "clear", seatUsd: 40 }), /starts at \$40/);
   });
 });
+
+describe("un contrat qui passe reste actionnable", () => {
+  test("outreachDraft produit un message pour clear ET pour flagged", () => {
+    for (const v of ["clear", "flagged"]) {
+      const d = outreachDraft({ ticker: "FONE", verdict: v, seatUsd: 15,
+        reasons: ["The pool is 9 hours old."] });
+      assert.ok(d && d.length > 60, `${v} doit produire un message, pas une impasse`);
+      assert.match(d, /FONE/);
+    }
+  });
+
+  test("aucun message n'est produit pour un verdict non vendable", () => {
+    for (const v of ["refused", "incomplete", "pending", "error", undefined]) {
+      assert.equal(outreachDraft({ ticker: "FONE", verdict: v, seatUsd: 15,
+        reasons: ["Pool liquidity is $2,300, under the $2,500 floor."] }), null,
+        `un ${v} ne doit pas produire un message qui s'ouvre sur « it passed »`);
+    }
+  });
+});
+
+test("le message ne prétend pas savoir quelle heure il est", () => {
+  for (const v of ["clear", "flagged"]) {
+    const d = outreachDraft({ ticker: "FONE", verdict: v, seatUsd: 15,
+      reasons: ["The pool is 8 hours old."] });
+    assert.doesNotMatch(d, /this morning|tonight|this afternoon|today/i,
+      "un brouillon envoyé le soir affirmait l'avoir mesuré le matin");
+  }
+});

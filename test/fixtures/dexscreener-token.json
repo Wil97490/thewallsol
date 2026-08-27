@@ -1,0 +1,9 @@
+{"pairs":[
+ {"chainId":"solana","dexId":"pumpswap","pairAddress":"PAIR1",
+  "liquidity":{"usd":41234.5},"volume":{"h24":118000},"fdv":8100000,
+  "pairCreatedAt":1756000000000},
+ {"chainId":"solana","dexId":"raydium","pairAddress":"PAIR2",
+  "liquidity":{"usd":912},"volume":{"h24":400},"fdv":8100000,
+  "pairCreatedAt":1756200000000},
+ {"chainId":"base","dexId":"aerodrome","liquidity":{"usd":999999}}
+]}

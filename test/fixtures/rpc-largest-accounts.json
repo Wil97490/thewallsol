@@ -1,0 +1,3 @@
+{"jsonrpc":"2.0","result":{"context":{"slot":1},"value":[
+ {"address":"ACC1","amount":"6140000000","decimals":6,"uiAmountString":"6140"},
+ {"address":"ACC2","amount":"1200000000","decimals":6,"uiAmountString":"1200"}]},"id":1}

@@ -1,0 +1,3 @@
+{"jsonrpc":"2.0","result":{"context":{"slot":1},"value":[
+ {"data":{"parsed":{"info":{"owner":"OWNER1"}}}},
+ {"data":{"parsed":{"info":{"owner":"OWNER2"}}}}]},"id":1}

@@ -1,0 +1,1 @@
+{"jsonrpc":"2.0","result":{"context":{"slot":1},"value":{"data":{"parsed":{"info":{"decimals":6,"freezeAuthority":null,"isInitialized":true,"mintAuthority":null,"supply":"1000000000000000"},"type":"mint"},"program":"spl-token","space":82}}},"id":1}

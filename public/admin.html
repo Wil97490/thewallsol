@@ -80,9 +80,21 @@
         <form id="screenForm" class="screenbar">
           <div class="field"><label for="scTicker">Ticker</label><input id="scTicker" maxlength="12" placeholder="FROG" required></div>
           <div class="field"><label for="scMint">Adresse du contrat</label><input id="scMint" maxlength="60" placeholder="9cRC…pump" required></div>
+          <div class="field"><label for="scLink">Lien <span class="opt">— laissez vide, on le cherche</span></label><input id="scLink" maxlength="200" placeholder="https://…" inputmode="url"></div>
           <button class="btn ghost" type="submit" id="scRun">Passer aux checks</button>
         </form>
         <p class="note" id="scOut" hidden></p>
+        <div class="draft" id="scPitch" hidden>
+          <div class="draft-head">
+            <span class="draft-kind k-flagged">Message de démarchage</span>
+            <span class="draft-when" id="scPitchWho"></span>
+          </div>
+          <textarea id="scPitchText" aria-label="Message de démarchage"></textarea>
+          <div class="draft-acts">
+            <button class="btn" type="button" id="scPitchCopy">Copier le message</button>
+            <button class="btn ghost" type="button" id="scPitchDone">Marquer contacté</button>
+          </div>
+        </div>
         <div id="drafts" class="drafts"><p class="note mono">chargement…</p></div>
         <p class="note" id="draftsEmpty" hidden>Rien à dire aujourd'hui. C'est une réponse valable.</p>
       </div>

@@ -1,8 +1,9 @@
 import "./_helpers.js";
-import test from "node:test";
+import test, { describe } from "node:test";
 import assert from "node:assert/strict";
 
-import { slugify, refusalPage, refusalGonePage, refusalMissingPage, sitemap } from "../src/pages.js";
+import { slugify, refusalPage, refusalGonePage, refusalMissingPage, seenPage, sitemap } from "../src/pages.js";
+import { aggregate, pushNight, totals } from "../src/agents/scout.js";
 import { monthlyDraft } from "../src/agents/poster.js";
 import { _resetMemory, recordRefusal, getRefusalBySlug, listRefusals } from "../src/storage.js";
 
@@ -262,4 +263,71 @@ test("la page des règles ne peut plus affirmer qu'il n'y a pas de token", () =>
   // L'adresse est écrite pour vérifier, jamais pour acheter : la page ne
   // devient pas un chemin vers pump.fun.
   assert.doesNotMatch(html, /href="https?:\/\/pump\.fun/);
+});
+
+/* ------------------------------------------------------------------ *
+ * /seen — l'agrégat des nuits
+ *
+ * La règle unique de cette page : une statistique qui pourrait
+ * identifier un projet n'est pas une statistique, c'est une accusation
+ * dont on a limé le nom. Ces tests l'épinglent, parce que c'est le seul
+ * endroit du site où l'on publie des mesures faites sur des contrats
+ * qu'on a délibérément choisi de NE PAS nommer.
+ * ------------------------------------------------------------------ */
+describe("what the wall saw — counted, never named", () => {
+  const round = () => ({
+    at: "2026-08-27T05:00:00Z", seen: 85, priced: 70, droppedCount: 24,
+    droppedWhy: { no_pool: 13, no_volume: 8 },
+    checked: [
+      { ticker: "PISSTACIO", mint: MINT, link: "https://pisstacio.lol", verdict: "refused",
+        ruleIds: ["lp_thin"], lpUsd: 2300, vol24Usd: 1300000, ageHours: 13 },
+      { ticker: "MARTIANS", mint: "MaRt1ans", verdict: "flagged",
+        ruleIds: ["young", "lp_burn_only"], lpUsd: 121000, vol24Usd: 8000000, ageHours: 9 },
+      { ticker: "GROKBOT", mint: "Gr0kb0t", verdict: "refused",
+        ruleIds: ["mint_authority", "whale"], lpUsd: 5000, vol24Usd: 600000, ageHours: 40 },
+    ],
+  });
+  const page = () => {
+    const h = pushNight([], aggregate(round()));
+    return seenPage({ last: h[0], history: h, totals: totals(h) });
+  };
+
+  test("no ticker, no mint, no link reaches the page", () => {
+    const html = page();
+    for (const secret of ["PISSTACIO", "MARTIANS", "GROKBOT", MINT, "MaRt1ans", "Gr0kb0t", "pisstacio.lol"]) {
+      assert.ok(!html.includes(secret), `${secret} a fuité sur une page qui ne doit nommer personne`);
+    }
+  });
+
+  test("findings and our own limits are counted in separate sections", () => {
+    const html = page();
+    assert.match(html, /What the checks found/);
+    assert.match(html, /What we could not check/);
+    assert.ok(html.indexOf("What the checks found") < html.indexOf("What we could not check"),
+      "les constats d'abord, nos limites ensuite — jamais mélangés");
+  });
+
+  test("the aggregate counts every rule a contract carried", () => {
+    const a = aggregate(round());
+    assert.equal(a.checked, 3);
+    assert.equal(a.findings.mint_authority, 1);
+    assert.equal(a.findings.lp_thin, 1);
+    assert.equal(a.findings.young, 1);
+    assert.equal(a.verdicts.refused, 2);
+    assert.equal(a.verdicts.flagged, 1);
+  });
+
+  test("re-running the round on the same day does not inflate the history", () => {
+    const a = aggregate(round());
+    let h = pushNight([], a);
+    h = pushNight(h, { ...a, at: "2026-08-27T22:00:00Z" });
+    assert.equal(h.length, 1, "deux rondes le même jour comptent pour une nuit");
+    assert.equal(totals(h).checked, 3, "sinon le cumul compterait les contrats deux fois");
+  });
+
+  test("a night that measured nothing renders without inventing figures", () => {
+    const html = seenPage({ last: null, history: [], totals: { nights: 0, checked: 0, findings: {}, ours: {}, verdicts: {} } });
+    assert.match(html, /has not stored a night yet/);
+    assert.doesNotMatch(html, /\b0 contracts read\b/);
+  });
 });

@@ -589,6 +589,14 @@ export function outreachDraft({ ticker, verdict, reasons = [], seatUsd }) {
   const price = Number.isFinite(Number(seatUsd)) ? `$${Math.round(Number(seatUsd))}` : null;
   if (!ticker) return null;
 
+  /* Un message de démarchage ne peut exister que pour un contrat
+   * vendable. La fonction s'ouvrait sur « It passed all of them » quel
+   * que soit le verdict : passez-lui un refus et elle annonçait le
+   * contraire de la vérité, l'appelant étant le seul garde-fou. C'est
+   * exactement la faute du brouillon de post — la retenue doit vivre
+   * dans la fonction, pas dans la discipline de celui qui l'appelle. */
+  if (verdict !== "clear" && verdict !== "flagged") return null;
+
   const flag = verdict === "flagged" ? (reasons || [])[0] : null;
 
   /* "clear" and "flagged" are two different verdicts in this system, and
@@ -597,10 +605,15 @@ export function outreachDraft({ ticker, verdict, reasons = [], seatUsd }) {
    * next sentence is a contradiction inside three lines — and it spends
    * the one thing this outreach has going for it, which is that we say
    * exactly what we measured. */
+  /* « this morning » était écrit en dur. Un check lancé à midi produisait
+   * donc un message qui se trompait dès sa première phrase — sur un site
+   * dont tout l'argument est de n'affirmer que ce qu'il a mesuré, c'est
+   * le pire endroit pour une approximation. Aucune heure n'est promise :
+   * la mesure est datée sur la page de refus, pas dans un DM. */
   const lines = [
     flag
-      ? `We ran ${t} through our contract checks this morning. It passed — with one flag, which we would print rather than hide.`
-      : `We ran ${t} through our contract checks this morning. It passed all of them.`,
+      ? `We ran ${t} through our contract checks. It passed — with one flag, which we would print rather than hide.`
+      : `We ran ${t} through our contract checks. It passed all of them.`,
     flag
       ? `The flag, printed on the seat publicly for as long as it is up: ${flag}`
       : null,
@@ -610,4 +623,105 @@ export function outreachDraft({ ticker, verdict, reasons = [], seatUsd }) {
   ].filter(Boolean);
 
   return lines.join("\n\n");
+}
+
+/* ------------------------------------------------------------------ *
+ * WHAT THE WALL SAW — the aggregate
+ *
+ * The round reads two dozen contracts a night and publishes at most
+ * one. The other twenty-three measurements were thrown away, not
+ * because they were wrong but because they are not publishable AGAINST
+ * A NAMED PROJECT — the same restraint the whole ledger rests on.
+ *
+ * The aggregate is publishable, because it names nobody. "Nine of the
+ * twenty-four contracts we read last night sat under our liquidity
+ * floor" accuses no one and is true. It is also the only number of its
+ * kind anybody publishes.
+ *
+ * NOTHING in here may carry a ticker, a mint, or a link. If a field
+ * could identify one project, it does not belong in this function.
+ * ------------------------------------------------------------------ */
+
+/** Conditions worth counting, in the order a reader cares about. */
+export const SEEN_RULES = [
+  ["mint_authority",  "Supply could still be inflated"],
+  ["freeze_authority", "Holders could be frozen"],
+  ["whale",           "One wallet over our ceiling"],
+  ["concentrated",    "Holdings concentrated"],
+  ["lp_unlocked",     "Liquidity measured unlocked"],
+  ["no_pool",         "No pool at all"],
+  ["lp_thin",         "Pool under our floor"],
+  ["thin_pool",       "Pool thin enough to flag"],
+  ["young",           "Pair less than a day old"],
+  ["lp_burn_only",    "Liquidity burned by the launchpad, not locked independently"],
+  ["link_dead",       "Destination link does not resolve"],
+  ["link_threat",     "Destination link flagged"],
+];
+
+/** Checks that could not run — facts about us, counted separately. */
+export const SEEN_OURS = [
+  ["pool_unread",          "The pool could not be read"],
+  ["holders_unread",       "Holders could not be read"],
+  ["holders_unmeasurable", "Too many accounts to sample"],
+  ["lp_lock_unverifiable", "That DEX is not modelled by our checks"],
+  ["link_uncheckable",     "The link could not be submitted for a safety check"],
+  ["link_absent",          "No destination link was available"],
+];
+
+/**
+ * Fold one round into a row that names nobody.
+ * Pure — takes the round, returns the row. No I/O, no dates invented.
+ */
+export function aggregate(round, { at = null } = {}) {
+  const checked = Array.isArray(round?.checked) ? round.checked : [];
+  const count = (ids) => {
+    const out = {};
+    for (const [id] of ids) out[id] = 0;
+    for (const c of checked) for (const r of (c.ruleIds || [])) if (r in out) out[r] += 1;
+    return out;
+  };
+  const verdicts = { clear: 0, flagged: 0, refused: 0, incomplete: 0, pending: 0, error: 0 };
+  for (const c of checked) if (c.verdict in verdicts) verdicts[c.verdict] += 1;
+
+  const nums = (key) => checked.map((c) => Number(c[key])).filter((n) => Number.isFinite(n) && n > 0).sort((a, b) => a - b);
+  const median = (a) => (a.length ? (a.length % 2 ? a[(a.length - 1) / 2] : Math.round((a[a.length / 2 - 1] + a[a.length / 2]) / 2)) : null);
+
+  return {
+    at: at || round?.at || null,
+    seen: Number(round?.seen || 0),
+    priced: Number(round?.priced || 0),
+    checked: checked.length,
+    dropped: Number(round?.droppedCount || 0),
+    droppedWhy: round?.droppedWhy || {},
+    verdicts,
+    findings: count(SEEN_RULES),
+    ours: count(SEEN_OURS),
+    medianLpUsd: median(nums("lpUsd")),
+    medianVol24Usd: median(nums("vol24Usd")),
+    medianAgeHours: median(nums("ageHours")),
+  };
+}
+
+/** Add tonight's row to the history, newest first, bounded. */
+export const SEEN_HISTORY_MAX = 120;
+export function pushNight(history, row) {
+  const prev = Array.isArray(history) ? history : [];
+  // Une seule ligne par nuit : relancer la ronde ne doit pas gonfler le total.
+  const day = String(row?.at || "").slice(0, 10);
+  const kept = prev.filter((r) => String(r?.at || "").slice(0, 10) !== day);
+  return [row, ...kept].slice(0, SEEN_HISTORY_MAX);
+}
+
+/** Running totals across every night we have kept. */
+export function totals(history) {
+  const rows = Array.isArray(history) ? history : [];
+  const t = { nights: rows.length, seen: 0, checked: 0, findings: {}, ours: {}, verdicts: {} };
+  for (const r of rows) {
+    t.seen += Number(r.seen || 0);
+    t.checked += Number(r.checked || 0);
+    for (const [k, v] of Object.entries(r.findings || {})) t.findings[k] = (t.findings[k] || 0) + v;
+    for (const [k, v] of Object.entries(r.ours || {})) t.ours[k] = (t.ours[k] || 0) + v;
+    for (const [k, v] of Object.entries(r.verdicts || {})) t.verdicts[k] = (t.verdicts[k] || 0) + v;
+  }
+  return t;
 }

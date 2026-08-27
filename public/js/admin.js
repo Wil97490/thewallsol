@@ -292,17 +292,58 @@ $("#screenForm").addEventListener("submit", async (e) => {
 
   const res = await api("/api/admin/screen", {
     method: "POST",
-    body: JSON.stringify({ ticker: $("#scTicker").value.trim(), mint: $("#scMint").value.trim() }),
+    body: JSON.stringify({
+      ticker: $("#scTicker").value.trim(),
+      mint: $("#scMint").value.trim(),
+      link: $("#scLink").value.trim() || null,
+    }),
   });
 
   btn.disabled = false; btn.textContent = "Passer aux checks";
   if (!res.ok) { out.textContent = res.body.error || "Les checks n'ont pas pu tourner."; return; }
 
+  /* Quatre verdicts, pas deux. Ce bloc n'en connaissait que « Accepté »
+     et « Refusé », si bien qu'une vérification qui N'AVAIT PAS TOURNÉ
+     s'affichait comme un refus du contrat — la faute même que le
+     screener a été refait pour rendre impossible. */
   const r = res.body;
-  out.innerHTML = r.allow
-    ? `<strong>Accepté</strong> — badge ${esc(r.badge || "—")}. Rien à publier : on ne poste pas les contrats qui passent sans qu'ils aient acheté un siège.`
-    : `<strong>Refusé</strong> — ${(r.reasons || []).map(esc).join(" ")} Le brouillon est en bas.`;
-  if (!r.allow) { $("#scTicker").value = ""; $("#scMint").value = ""; await loadDrafts(); }
+  const why = (r.reasons || []).map(esc).join(" ");
+  const src = r.linkFrom === "discovered"
+    ? ` <span class="mkt">lien trouvé sur leur fiche : ${esc(r.link || "")}</span>` : "";
+
+  if (r.verdict === "incomplete") {
+    out.innerHTML = `<strong>Non établi</strong> — ${why} Rien n'est affirmé sur ce contrat, rien n'est enregistré. Réessayez, ou collez un lien dans le champ.`;
+  } else if (r.verdict === "pending") {
+    out.innerHTML = `<strong>Relecture humaine</strong> — ${why}`;
+  } else if (r.allow) {
+    /* Passer les checks n'est pas une impasse : c'est le profil qu'on
+       démarche. On ne PUBLIE rien — on écrit à quelqu'un. */
+    const L = r.links || {};
+    const ln = [
+      L.twitter  ? `<a href="${esc(L.twitter)}" target="_blank" rel="noopener noreferrer nofollow">X</a>` : "",
+      L.telegram ? `<a href="${esc(L.telegram)}" target="_blank" rel="noopener noreferrer nofollow">Telegram</a>` : "",
+      L.website  ? `<a href="${esc(L.website)}" target="_blank" rel="noopener noreferrer nofollow">site</a>` : "",
+    ].filter(Boolean).join(" · ") || "aucun contact publié";
+
+    out.innerHTML = `<strong>Accepté</strong> — badge ${esc(r.badge || "—")}.${src}
+      Rien à publier : on ne se porte pas garant d'un contrat que personne n'a soumis.
+      <b>Mais c'est un prospect.</b>${r.addedToProspects ? " Ajouté à la liste." : ""}`;
+
+    $("#scPitch").hidden = false;
+    $("#scPitchWho").innerHTML = `$${esc($("#scTicker").value.trim().toUpperCase())} — ${ln}`;
+    $("#scPitchText").value = r.outreach || "";
+    $("#scPitchDone").dataset.mint = $("#scMint").value.trim();
+    $("#scPitchDone").textContent = "Marquer contacté";
+  } else if (r.post) {
+    out.innerHTML = `<strong>Refusé</strong> — ${why}${src} Le brouillon est en bas.`;
+  } else {
+    out.innerHTML = `<strong>Refusé</strong> — ${why}${src} <span class="mkt">Non publiable : ${esc(r.withheld || "")}</span>`;
+  }
+  if (r.post) {
+    $("#scPitch").hidden = true;
+    $("#scTicker").value = ""; $("#scMint").value = ""; $("#scLink").value = "";
+    await loadDrafts();
+  }
 });
 
 
@@ -654,3 +695,27 @@ function renderLeads(list) {
     });
   }
 }
+
+
+/* ---- le message de démarchage issu d'un check manuel ---------------
+   Copier, puis rayer. Pas de CRM, pas d'envoi automatique : ce bouton
+   n'écrit à personne, il vous met le texte dans le presse-papiers.
+   ------------------------------------------------------------------ */
+$("#scPitchCopy")?.addEventListener("click", async () => {
+  const t = $("#scPitchText");
+  try { await navigator.clipboard.writeText(t.value); }
+  catch { t.select(); document.execCommand("copy"); }
+  $("#scPitchCopy").textContent = "Copié";
+  setTimeout(() => { $("#scPitchCopy").textContent = "Copier le message"; }, 1600);
+});
+
+$("#scPitchDone")?.addEventListener("click", async () => {
+  const mint = $("#scPitchDone").dataset.mint;
+  if (!mint) return;
+  const b = $("#scPitchDone");
+  b.disabled = true;
+  const res = await api(`/api/admin/contacted/${encodeURIComponent(mint)}`, { method: "POST", body: "{}" });
+  b.disabled = false;
+  b.textContent = res.ok ? "Rayé de la liste" : "Échec";
+  if (res.ok) setTimeout(() => { $("#scPitch").hidden = true; b.textContent = "Marquer contacté"; }, 1400);
+});

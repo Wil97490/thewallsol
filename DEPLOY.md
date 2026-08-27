@@ -630,3 +630,18 @@ Deux tests et deux sondes de preflight empêchent le retour de l'ancienne
 affirmation et la disparition de la nouvelle.
 
 Section « Ideas are welcome » ajoutée : e-mail et DM X.
+
+## Firebase Hosting — le routage du domaine
+
+`firebase.json`, à la racine, est ce qui met thewallsol.com devant Cloud Run :
+toute requête (`**`) est réécrite vers le service `wall` en europe-west1.
+Sans ce fichier, le domaine ne pointe sur rien.
+
+Il ne part PAS avec `./scripts/deploy.sh`, qui ne déploie que Cloud Run — les
+deux sont indépendants. Ce fichier n'a besoin d'être renvoyé que si vous
+changez le routage lui-même (nouveau service, autre région, règles ajoutées).
+
+Il a vécu ses premières semaines dans un dossier `~/wall-hosting` sur un seul
+Cloud Shell, sauvegardé nulle part. Il est ici pour être versionné avec le
+reste : une pièce d'infrastructure dont dépend le site ne doit pas exister en
+un seul exemplaire sur une machine jetable.

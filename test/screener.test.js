@@ -244,3 +244,28 @@ describe("a missing link is a fact about us, never about them", () => {
     assert.ok(r.ruleIds.includes("link_uncheckable"));
   });
 });
+
+/* ------------------------------------------------------------------ *
+ * LE CHECK MANUEL
+ *
+ * Le formulaire du back office ne demande qu'un ticker et une adresse.
+ * Dès que `link_absent` a existé, cela a suffi à rendre TOUT check
+ * manuel impossible : pas de lien → la vérification du lien ne tourne
+ * pas → `incomplete` → rien ne sort. Un correctif qui protège le
+ * registre en cassant l'outil qui l'alimente n'est pas un correctif.
+ * ------------------------------------------------------------------ */
+describe("un lien absent ne doit pas condamner le contrat", () => {
+  test("le verdict est retryable — on invite à revenir, on n'accuse pas", async () => {
+    const r = await screen({ ...OK_FACTS, linkThreat: "missing", linkStatus: 0 });
+    assert.equal(r.verdict, "incomplete");
+    assert.equal(r.escalate, false, "personne ne doit être mis en file d'attente pour un champ vide");
+  });
+
+  test("le contrat lui-même reste jugé sur ses propres faits", async () => {
+    // mêmes faits, mais avec un lien : le contrat passe. La seule
+    // différence entre les deux appels est de notre côté.
+    const withLink = await screen({ ...OK_FACTS });
+    assert.equal(withLink.verdict, "clear",
+      "si ce fait-set passe avec un lien, l'absence de lien ne dit rien du contrat");
+  });
+});
