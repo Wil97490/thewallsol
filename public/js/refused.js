@@ -44,5 +44,6 @@ const when = (iso) => {
       <ul class="ref-why">
         ${(r.reasons || []).map((x) => `<li>${esc(x)}</li>`).join("")}
       </ul>
+      ${r.mint ? `<p class="ref-mint" title="The contract this row is about">${esc(r.mint)}</p>` : ""}
     </article>`).join("");
 })();

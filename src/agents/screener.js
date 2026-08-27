@@ -64,11 +64,31 @@ export const UNRESOLVED_RULES = [
   },
   {
     // A link we could not submit to Safe Browsing is unchecked, not
-    // malicious. "missing" is different: no link was supplied at all,
-    // and the security refusals below still apply on their own.
+    // malicious.
     id: "link_uncheckable",
     test: (f) => f.linkThreat === "unchecked",
     reason: () => "The destination link could not be submitted for a safety check just now.",
+  },
+  {
+    /* No link at all. This used to live in `link_threat` below, next to
+     * "flagged malicious", and it produced the worst sentence this site
+     * has ever generated: a REFUSAL against a token with $11M of daily
+     * volume, whose stated finding was "No destination link was
+     * supplied." Nobody had supplied anything — it was an unsubmitted
+     * contract the round had picked up, and DexScreener simply had no
+     * profile URL for it. We published our own empty field as a finding
+     * about them.
+     *
+     * An absence is not a discovery. The link check did not run, so it
+     * belongs here with the other checks that did not run: nothing is
+     * asserted, nothing is recorded, nothing is publishable.
+     *
+     * The checkout path never reaches this rule — validateEntry() turns
+     * a missing link into a 400 long before the gate is called — so
+     * this cannot be used to buy a seat without a destination. */
+    id: "link_absent",
+    test: (f) => f.linkThreat === "missing",
+    reason: () => "No destination link was available, so the link was not checked.",
   },
 ];
 
@@ -153,16 +173,13 @@ export const HARD_RULES = [
     reason: (f) => `The destination link does not resolve (${f.linkStatus}).`,
   },
   {
-    // "unchecked" moved out: that is our checker failing, not their
-    // link being malicious, and it is handled above. Everything else
-    // here is something Safe Browsing or our own SSRF guard actually
-    // found, which is a finding about the destination.
+    // "unchecked" and "missing" both moved out: one is our checker
+    // failing, the other is our not having a link at all. Neither is a
+    // finding about their destination. What is left here is something
+    // Safe Browsing or our own SSRF guard actually found.
     id: "link_threat",
-    test: (f) => f.linkThreat !== "none" && f.linkThreat !== "unchecked",
-    reason: (f) =>
-      f.linkThreat === "missing"
-        ? "No destination link was supplied."
-        : `The destination link is flagged malicious (${f.linkThreat}).`,
+    test: (f) => f.linkThreat !== "none" && f.linkThreat !== "unchecked" && f.linkThreat !== "missing",
+    reason: (f) => `The destination link is flagged malicious (${f.linkThreat}).`,
   },
   {
     id: "ticker_taken",

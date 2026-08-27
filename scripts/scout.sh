@@ -4,6 +4,7 @@
 #
 #   ./scripts/scout.sh [n]                   propose  (records nothing)
 #   ./scripts/scout.sh commit <MINT> <TICK>  publish  (feeds the ledger)
+#   ./scripts/scout.sh contacted <MINT>      strike a lead off the list
 #
 # Reads WALL_URL and ADMIN_TOKEN from the environment, or from
 # deploy.env / .scout.env if they are sitting there.
@@ -76,15 +77,38 @@ NOTE
 
   # The draft comes from the server, not from here. A CLI that rebuilds
   # the post itself drifts from the back office within a week.
+  #
+  # And the server now decides whether there IS a draft. It used to hand
+  # one back for any outcome at all, which is how a refusal whose only
+  # finding was our own missing link came back as a finished post about
+  # a token with $11M of daily volume.
+  POST=$(printf '%s' "$OUT" | jq -r '.post // false')
+  if [ "$POST" != "true" ]; then
+    printf '\n  Nothing to post.\n\n'
+    printf '%s' "$OUT" | jq -r '"  " + (.withheld // "this outcome is not publishable")'
+    printf '\n  Nothing was recorded either — the ledger only carries what we publish.\n'
+    exit 0
+  fi
+
   printf '\n  post this:\n%s\n' "$DASH"
-  printf '%s' "$OUT" | jq -r '.draft // "  (nothing publishable for this outcome)"'
+  printf '%s' "$OUT" | jq -r '.draft'
   printf '%s\n' "$DASH"
-  [ "$VERDICT" = "refused" ] && printf '  the ledger now carries it:  %s/refused\n' "$URL"
+  [ "$(printf '%s' "$OUT" | jq -r '.recorded // false')" = "true" ] \
+    && printf '  the ledger now carries it:  %s/refused\n' "$URL"
+  exit 0
+fi
+
+# ---- contacted: strike one off the standing list --------------------
+if [ "${1:-}" = "contacted" ]; then
+  MINT="${2:?usage: scout.sh contacted <mint>}"
+  OUT=$(api POST "/api/admin/contacted/$MINT" '{}')
+  die_on_error "$OUT"
+  printf '  struck off. %s left on the list.\n' "$(printf '%s' "$OUT" | jq -r '.remaining // "?"')"
   exit 0
 fi
 
 # ---- the round ------------------------------------------------------
-LIMIT="${1:-5}"
+LIMIT="${1:-24}"
 RES=$(api POST /api/admin/scout "$(jq -nc --argjson n "$LIMIT" '{limit:$n}')")
 die_on_error "$RES"
 
@@ -151,9 +175,17 @@ printf '\n%s\n' "$RULE"
 printf '  nothing above was recorded. commit the one you want.\n'
 
 # ---- and the ones you can sell to -----------------------------------
+# A list that could not be saved must say so here. It used to be
+# swallowed, and the round went on printing leads it had already lost.
+if [ "$(printf '%s' "$RES" | jq -r '.prospectsStored // true')" = "false" ]; then
+  printf '\n  WARNING — the prospect list could NOT be saved.\n'
+  printf '  What is printed below is this round only. It will be gone tomorrow.\n'
+fi
+
 LEADS=$(printf '%s' "$RES" | jq '(.prospects // []) | length')
+FRESH=$(printf '%s' "$RES" | jq '.freshProspects // 0')
 if [ "$LEADS" != "0" ]; then
-  printf '\n%s\n  who to write to  (%s)\n%s\n' "$RULE" "$LEADS" "$RULE"
+  printf '\n%s\n  who to write to  (%s on the list, %s new tonight)\n%s\n' "$RULE" "$LEADS" "$FRESH" "$RULE"
   printf '%s' "$RES" | jq -r '
     def pad(w): .[0:w] + (" " * (w - ([w, length] | min)));
     def m(n): (n // 0) as $n
@@ -165,5 +197,7 @@ if [ "$LEADS" != "0" ]; then
       + ((.verdict // "?") | ascii_upcase | pad(9))
       + ("vol " + m(.vol24Usd) | pad(11))
       + ((.links.twitter // .links.telegram // .links.website // "-") | pad(46))'
-  printf '%s\n  messages are in /admin — nothing here sends anything.\n' "$RULE"
+    printf '%s\n' "$RULE"
+  printf '  the same list, with the messages, is on /admin — nothing here sends anything.\n'
+  printf '  written to one?   ./scripts/scout.sh contacted <MINT>\n'
 fi

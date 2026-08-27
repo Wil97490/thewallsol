@@ -71,9 +71,37 @@ test("a probe page says nobody asked; a gate page does not", () => {
   assert.doesNotMatch(refusalPage(row({ source: "gate" })), /Nobody submitted this contract/);
 });
 
-test("a refusal page never republishes the contract address", () => {
+/* This test used to assert the opposite — that the page never printed
+ * the mint — on the reasoning that a ledger should not hand anyone a
+ * contract address to go buy.
+ *
+ * That was reversed on purpose. Withholding it stopped the good use and
+ * not the bad one: a buyer finds the token on a chart site in seconds,
+ * while nobody could check the finding was about the contract we said
+ * it was. And a ticker is not an identity — one refused ticker returned
+ * a dozen live tokens of the same name across four chains, so a refusal
+ * published against a name alone is smeared over every project sharing
+ * it.
+ *
+ * What survives from the old rule is the half that mattered: printed,
+ * never linked. */
+test("a refusal page identifies the contract it measured", () => {
   const html = refusalPage(row({ mint: MINT }));
-  assert.ok(!html.includes(MINT), "the page handed a crawler the mint");
+  assert.ok(html.includes(MINT), "a refusal against a ticker alone accuses every token of that name");
+});
+
+test("the mint is printed, never linked", () => {
+  const html = refusalPage(row({ mint: MINT }));
+  assert.ok(!new RegExp(`href="[^"]*${MINT}`).test(html),
+    "the ledger identifies a contract; it does not send anyone to it");
+  assert.ok(!html.includes(`solscan`) && !html.includes("dexscreener"),
+    "no chart or explorer link may ride along with a refusal");
+});
+
+test("a row with no mint recorded prints no address block at all", () => {
+  const html = refusalPage(row({ mint: null }));
+  assert.doesNotMatch(html, /The contract this page is about/,
+    "an empty identity block is worse than none — it implies we had one");
 });
 
 test("a ticker cannot inject markup into its own page", () => {

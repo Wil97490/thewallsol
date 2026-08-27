@@ -353,6 +353,22 @@ async function loadLedger() {
 
 const VERDICT_FR = { refused: "refusé", flagged: "signalé", clear: "passe", incomplete: "non établi", pending: "relecture humaine", error: "erreur" };
 
+/* L'adresse du contrat, sous chaque carte du back-office.
+ *
+ * Le ticker n'identifie rien : une recherche sur un seul ticker refusé
+ * a renvoyé une douzaine de jetons vivants portant le même nom sur
+ * quatre chaînes. Avant de cliquer « Publier au registre », il faut
+ * pouvoir comparer l'adresse avec le graphique — et donc l'avoir sous
+ * les yeux, avec le lien pour aller vérifier en un clic. */
+function mintRow(mint) {
+  if (!mint) return "";
+  return `<p class="draft-mint">
+    <span>${esc(mint)}</span>
+    <a href="https://dexscreener.com/solana/${encodeURIComponent(mint)}"
+       target="_blank" rel="noopener noreferrer nofollow">vérifier</a>
+  </p>`;
+}
+
 const short = (n) => {
   const v = Number(n) || 0;
   if (v >= 1e6) return (v / 1e6).toFixed(v >= 1e7 ? 0 : 1) + "M";
@@ -360,7 +376,7 @@ const short = (n) => {
   return String(Math.round(v));
 };
 
-function renderScout(r, { cached = false } = {}) {
+function renderScout(r, { cached = false, keepLeads = false } = {}) {
   const out = $("#scoutOut");
   const alive = (r.sources || []).filter((s) => s.ok);
   const checked = r.checked || [];
@@ -404,6 +420,7 @@ function renderScout(r, { cached = false } = {}) {
         <span class="draft-when">${esc((c.via || []).join(", "))}</span>
         <span class="draft-chars">${(c.draft || "").length}/280</span>
       </div>
+      ${mintRow(c.mint)}
       <textarea id="sc${i}" aria-label="Texte du post">${esc(c.draft || "")}</textarea>
       <div class="draft-acts">
         <button class="btn" data-sccopy="${i}">Copier</button>
@@ -413,7 +430,10 @@ function renderScout(r, { cached = false } = {}) {
       </div>
     </div>`).join("");
 
-  renderLeads(r.prospects || []);
+  // Sur le chemin GET la liste vient déjà d'être peinte avec l'état
+  // vivant ; la ronde en cache porte une photo plus ancienne de la même
+  // liste et ne doit pas l'écraser.
+  if (!keepLeads) renderLeads(r.prospects || []);
 
   $("#scoutSkip").innerHTML = checked.filter((c) => !c.post).map((c) => `
     <div class="skip">
@@ -489,17 +509,29 @@ function renderScout(r, { cached = false } = {}) {
   }
 }
 
-/** La ronde de ce matin, déjà calculée par Cloud Scheduler. */
+/** La ronde de ce matin, déjà calculée par Cloud Scheduler.
+ *
+ * La liste de prospects se charge SÉPARÉMENT de la ronde, et c'est tout
+ * l'objet du correctif : elle survit à la ronde, donc elle doit
+ * s'afficher même quand il n'y a pas de ronde en cache — une nuit où la
+ * découverte n'a rien trouvé ne doit pas faire disparaître les leads des
+ * nuits précédentes. Avant, un `return` anticipé sur `!res.body.round`
+ * vidait la page entière et on croyait la liste perdue. */
 async function loadScout() {
   const res = await api("/api/admin/scout");
-  if (!res.ok || !res.body.round) return;
-  renderScout(res.body.round, { cached: true });
+  if (!res.ok) return;
+  renderLeads(res.body.prospects || []);
+  if (!res.body.round) return;
+  renderScout(res.body.round, { cached: true, keepLeads: true });
 }
 
 $("#scoutForm").addEventListener("submit", async (e) => {
   e.preventDefault();
   const btn = $("#scoutRun"), out = $("#scoutOut");
-  const n = Math.max(1, Math.min(10, Number($("#scoutN").value) || 8));
+  // Plafond aligné sur le serveur. À 10, la page ne pouvait pas demander
+  // une ronde complète même en tapant 24 dans le champ : elle tronquait
+  // en silence.
+  const n = Math.max(1, Math.min(60, Number($("#scoutN").value) || 24));
 
   btn.disabled = true;
   btn.textContent = "Lecture de la chaîne…";
@@ -595,6 +627,7 @@ function renderLeads(list) {
         ].filter(Boolean).join(" · ")}</span>
         <span class="draft-chars">siège $${esc(String(c.seatUsd))}</span>
       </div>
+      ${mintRow(c.mint)}
       <textarea id="lead${i}" aria-label="Message de démarchage">${esc(c.outreach || "")}</textarea>
       <div class="draft-acts">
         <button class="btn" data-leadcopy="${i}">Copier</button>

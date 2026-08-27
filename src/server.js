@@ -8,7 +8,7 @@ import { screen, publicBadge } from "./agents/screener.js";
 import { moderate } from "./agents/moderator.js";
 import { writeTape } from "./agents/tape.js";
 import { compose, probeDraft, monthlyDraft } from "./agents/poster.js";
-import { shortlist, postWorth, oneADay, prospects, outreachDraft } from "./agents/scout.js";
+import { shortlist, postWorth, oneADay, prospects, mergeProspects, outreachDraft } from "./agents/scout.js";
 import { refusalPage, refusalGonePage, refusalMissingPage, sitemap } from "./pages.js";
 import { report } from "./agents/reporter.js";
 import { gatherFacts } from "./facts.js";
@@ -197,9 +197,10 @@ export async function scoutRound({ limit = 8, cache = false } = {}) {
   /* The other half of the round: who would get a seat, and how to write
    * to them. Nothing here is published — see the header of scout.js for
    * the conflict this creates and the rule that contains it. */
-  const [contactedState, wallNow] = await Promise.all([
+  const [contactedState, wallNow, standingState] = await Promise.all([
     db.getState("scout:contacted"),
     wall.publicWall(),
+    db.getState("scout:prospects"),
   ]);
   const contacted = new Set(Array.isArray(contactedState) ? contactedState.map((x) => x?.mint) : []);
   const seatUsd = wallNow
@@ -210,14 +211,41 @@ export async function scoutRound({ limit = 8, cache = false } = {}) {
     mint: c.mint, ticker: c.ticker, verdict: c.verdict, reasons: c.reasons,
     vol24Usd: c.vol24Usd, lpUsd: c.lpUsd, fdvUsd: c.fdvUsd, dexId: c.dexId,
     ageHours: c.ageHours, via: c.via, links: c.links, seatUsd,
+    // Missing here is what broke the write. It is also what the standing
+    // list sorts by, so without it the "best lead first" ordering was
+    // quietly comparing undefined to undefined.
+    audience: c.audience,
     outreach: outreachDraft({ ticker: c.ticker, verdict: c.verdict, reasons: c.reasons, seatUsd }),
   }));
 
-  const round = { ...found, checked: oneADay(checked), prospects: leads, at: new Date().toISOString() };
+  /* The leads found tonight are folded into the standing list rather
+   * than replacing it. Before this, `leads` WAS the answer — two or
+   * three rows that lived until the next round overwrote them. */
+  const standing = mergeProspects(standingState, leads, { contacted });
+  /* Not silenced. A list that cannot be saved is the single worst thing
+   * that can go wrong here — it looks exactly like a quiet market from
+   * the outside, and that is precisely how this went unnoticed. */
+  let stored = true;
+  try {
+    await db.setState("scout:prospects", standing);
+  } catch (err) {
+    stored = false;
+    await audit("scout", "prospects_not_saved", { err: String(err.message || err).slice(0, 300) });
+  }
+
+  const round = {
+    ...found,
+    checked: oneADay(checked),
+    prospects: standing,
+    freshProspects: leads.length,
+    prospectsStored: stored,
+    at: new Date().toISOString(),
+  };
   await audit("scout", "round", {
     seen: found.seen, shortlisted: found.shortlist.length,
     postable: round.checked.filter((c) => c.post).length,
-    prospects: leads.length,
+    prospects: standing.length,
+    freshProspects: leads.length,
     withheld: checked.filter((c) => c.post).length - round.checked.filter((c) => c.post).length,
     sourcesLive: found.sources.filter((s) => s.ok).length,
     cached: cache,
@@ -227,7 +255,11 @@ export async function scoutRound({ limit = 8, cache = false } = {}) {
   // `checked`, and a state document is not a place to keep a payload
   // growing at whatever size the market feels like today.
   if (cache) {
-    await db.setState("scout:latest", { ...round, shortlist: round.shortlist.length }).catch(() => {});
+    try {
+      await db.setState("scout:latest", { ...round, shortlist: round.shortlist.length });
+    } catch (err) {
+      await audit("scout", "round_not_cached", { err: String(err.message || err).slice(0, 300) });
+    }
   }
   return round;
 }
@@ -601,10 +633,23 @@ const server = http.createServer(async (req, res) => {
     if (req.method === "GET" && p === "/api/tape") return json(res, 200, { posts: await recentPosts(20) });
     if (req.method === "GET" && p === "/api/refused") {
       const rows = (await db.listRefusals({ limit: 80 })).filter((r) => !r.hidden);
-      // The mint is not republished: the ledger exists to show what the
-      // gate measured, not to hand anyone a contract address to go buy.
+      /* The mint IS republished, and it used to not be. The old reason
+       * was that a ledger should not hand anyone a contract address to
+       * go buy — a fair instinct, and the wrong call.
+       *
+       * Withholding it stops the good use and not the bad one: anyone
+       * who wants to buy the token finds it on a chart site in ten
+       * seconds, while nobody can check that our finding is about the
+       * contract we say it is. And a ticker is not an identity — the
+       * evening this changed, a search for one refused ticker returned
+       * a dozen live tokens wearing the same name across four chains.
+       * A refusal published against a name rather than an address is an
+       * accusation smeared over every project that shares it.
+       *
+       * Printed, never linked — the same rule the site already applies
+       * to its own token on /rules. */
       return json(res, 200, {
-        rows: rows.map((r) => ({ at: r.at, ticker: r.ticker, reasons: r.reasons, ruleIds: r.ruleIds, source: r.source || "gate", slug: r.slug || null })),
+        rows: rows.map((r) => ({ at: r.at, ticker: r.ticker, mint: r.mint || null, reasons: r.reasons, ruleIds: r.ruleIds, source: r.source || "gate", slug: r.slug || null })),
       });
     }
     if (req.method === "GET" && p === "/api/config") {
@@ -641,10 +686,19 @@ const server = http.createServer(async (req, res) => {
       // waits in /admin. Nothing is published and nothing is recorded —
       // see scoutRound().
       try {
-        const r = await scoutRound({ limit: 8, cache: true });
+        /* 8 was chosen to be gentle on the RPC key this shares with the
+         * checkout. That was the right worry and the wrong number: it
+         * capped the funnel at eight contracts a day for a wall with
+         * twenty-four seats to fill. The round runs at night, when the
+         * checkout is not competing for the key. */
+        const r = await scoutRound({ limit: config.scoutRoundLimit, cache: true });
         return json(res, 200, {
           at: r.at, seen: r.seen, shortlisted: r.shortlist.length,
           postable: r.checked.filter((c) => c.post).length,
+          // Reported because it was not, and so nobody ever learned that
+          // the round had been finding leads and dropping them.
+          prospects: r.prospects.length,
+          freshProspects: r.freshProspects,
           sourcesLive: r.sources.filter((s) => s.ok).length,
         });
       } catch (err) {
@@ -719,10 +773,17 @@ const server = http.createServer(async (req, res) => {
       // uses it to look at a dozen contracts a day without turning the
       // public ledger into a firehose — the ledger is a record of what
       // we decided to publish, not of every query we ever ran.
+      /* record:false always, on purpose. The ledger entry is written
+       * further down instead — but only once postWorth() has agreed the
+       * finding is publishable. The ledger IS the published page: every
+       * row becomes /refused/<ticker>. Recording first and asking about
+       * publishability afterwards would mean a token could get a public
+       * refusal page carrying a finding we had already judged too weak
+       * to post. */
       const out = await checkoutGate({
         fields: { ticker, mint, link: body.link || null, pitch: null, seatNo: null },
         via: "probe",
-        record: body.dry !== true,
+        record: false,
       });
       if (body.dry !== true) {
         // A contract is checked once. Without this the loudest token on
@@ -735,13 +796,50 @@ const server = http.createServer(async (req, res) => {
       const verdict = out.allow ? (out.verdict || "flagged")
         : out.pending ? "pending" : out.retryable ? "incomplete" : "refused";
       const reasons = out.allow ? (out.publicReasons || []) : (out.detail || []);
+      /* The round decides what is worth publishing with postWorth(), and
+       * for a long time this route did not — it handed back a finished
+       * draft for any outcome at all. That is how a refusal whose only
+       * finding was our own missing link came back as a post about a
+       * token with $11M of daily volume. Restraint that lives on one
+       * path and not the other is not restraint; it is a coin toss over
+       * which entry point you happened to use.
+       *
+       * So both paths now ask the same question, and this one says why
+       * it declined rather than silently returning nothing. */
+      const worth = postWorth({
+        verdict,
+        ruleIds: out.ruleIds || [],
+        market: {
+          vol24Usd: out.facts?.vol24Usd ?? 0,
+          txns24: out.facts?.txns24 ?? 0,
+          change24: out.facts?.change24 ?? 0,
+          via: [],
+        },
+      });
+      /* Now, and only now, the ledger. A refusal that is not publishable
+       * is still a real refusal — it just is not evidence we are willing
+       * to put a named project's ticker next to. */
+      let recorded = false;
+      if (body.dry !== true && verdict === "refused" && worth.post) {
+        await db.recordRefusal({
+          ticker, mint, reasons, ruleIds: out.ruleIds || [], source: "probe",
+          vol24Usd: out.facts?.vol24Usd ?? null,
+        }).catch(() => {});
+        recorded = true;
+      }
+
       return json(res, 200, {
         allow: Boolean(out.allow), badge: out.badge || null, verdict,
         reasons,
+        post: worth.post,
+        recorded,
+        withheld: worth.post ? null : worth.why,
         // Built here rather than by the caller. A CLI that rebuilds the
         // post itself drifts from the back office within a week, and then
         // the wording depends on which one you happened to use.
-        draft: guarded(probeDraft({ ticker, verdict, reasons, vol24Usd: out.facts?.vol24Usd ?? null })),
+        draft: worth.post
+          ? guarded(probeDraft({ ticker, verdict, reasons, vol24Usd: out.facts?.vol24Usd ?? null }))
+          : null,
         facts: publicFacts(out.facts),
       });
     }
@@ -754,8 +852,15 @@ const server = http.createServer(async (req, res) => {
       const prev = (await db.getState("scout:contacted")) || [];
       const next = [{ mint, at: new Date().toISOString() }, ...prev.filter((x) => x?.mint !== mint)].slice(0, 500);
       await db.setState("scout:contacted", next);
+      // And strike it off the standing list now, rather than leaving it
+      // there looking un-actioned until the next round happens to run.
+      const standing = (await db.getState("scout:prospects")) || [];
+      const left = standing.filter((r) => r?.mint !== mint);
+      if (left.length !== standing.length) {
+        await db.setState("scout:prospects", left).catch(() => {});
+      }
       await audit("scout", "contacted", { mint });
-      return json(res, 200, { mint, contacted: true });
+      return json(res, 200, { mint, contacted: true, remaining: left.length });
     }
     if (req.method === "GET" && p === "/api/admin/recap") {
       return json(res, 200, { recap: (await db.getState("recap:latest")) || null });
@@ -769,11 +874,26 @@ const server = http.createServer(async (req, res) => {
       // The round Cloud Scheduler already ran this morning. Opening the
       // back office should not mean waiting thirty seconds for work that
       // was done at seven.
-      return json(res, 200, { round: (await db.getState("scout:latest")) || null });
+      //
+      // The standing list is read separately rather than taken from the
+      // cached round: it outlives any single round, and it is the one
+      // thing here that must still be correct after a night when
+      // discovery found nothing at all.
+      const [cached, standing] = await Promise.all([
+        db.getState("scout:latest"),
+        db.getState("scout:prospects"),
+      ]);
+      return json(res, 200, {
+        round: cached || null,
+        prospects: Array.isArray(standing) ? standing : [],
+      });
     }
     if (req.method === "POST" && p === "/api/admin/scout") {
       const body = await readJson(req).catch(() => ({}));
-      const limit = Math.min(10, Math.max(1, Number(body.limit) || 8));
+      // Was capped at 10. The cap existed to protect the RPC key, but it
+      // also silently truncated any larger number you asked for, so a
+      // round you thought was checking 30 contracts was checking ten.
+      const limit = Math.min(60, Math.max(1, Number(body.limit) || config.scoutRoundLimit));
       try {
         return json(res, 200, await scoutRound({ limit, cache: true }));
       } catch (err) {

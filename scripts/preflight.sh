@@ -64,6 +64,37 @@ probe "mint too large to sample" 200 '{"holdersProof":"too_many_accounts","holde
 probe "no pool at all"         409 '{"lpLocked":false,"lpUsd":0,"lpProof":"no_pool"}'
 probe "clean token sells"      200 '{}'
 
+# ---------------------------------------------------------------------
+# The $PISTACIO regression, checked against the DEPLOYED rules.
+#
+# An HTTP code cannot tell these apart: a refusal and a held check both
+# answer 409. That is exactly how this shipped — the code was right and
+# the sentence underneath it was a finding about a token that said "No
+# destination link was supplied" when nobody had supplied anything.
+# So this probe reads the body.
+# ---------------------------------------------------------------------
+echo "· a missing link is our gap, not their finding"
+payload=$(jq -nc --argjson f "$(facts '{"linkThreat":"missing","linkStatus":0}')" \
+  '{fields:{ticker:"PREFLIGHT",pitch:"preflight probe",link:null,mint:"So11111111111111111111111111111111111111112"},facts:$f}')
+curl -s -o /tmp/pf-link.json "$URL/gate" \
+  -H "authorization: Bearer $TOKEN" -H 'content-type: application/json' -d "$payload"
+
+if jq -e '.retryable == true' /tmp/pf-link.json >/dev/null 2>&1; then
+  pass "missing link is held, not refused"
+else
+  fail "missing link produced a REFUSAL — this is the PISTACIO bug"; cat /tmp/pf-link.json; echo
+fi
+if jq -e '[.ruleIds[]?] | index("link_absent")' /tmp/pf-link.json >/dev/null 2>&1; then
+  pass "reported as link_absent"
+else
+  fail "link_absent is not the rule that fired"; cat /tmp/pf-link.json; echo
+fi
+if jq -e '[.detail[]?] | join(" ") | test("supplied|malicious") | not' /tmp/pf-link.json >/dev/null 2>&1; then
+  pass "says nothing about what they supplied"
+else
+  fail "the published sentence still blames the project"; cat /tmp/pf-link.json; echo
+fi
+
 echo "· the selling path does not take facts from the caller"
 # The public endpoint must ignore any facts in the body and go read the
 # chain itself. A clean-looking payload for a mint that is not a real

@@ -45,6 +45,11 @@ export const config = {
    * buyers trade a seat back and forth a cent at a time, which earns
    * nothing and floods the hourly tape. */
   seatFloorUsd: num(process.env.SEAT_FLOOR_USD, 15),
+  // How many contracts the nightly round checks. Each one is a full
+  // gate run against the RPC, so this is a cost dial, not a quality
+  // dial — raising it lengthens the prospect list, it does not loosen
+  // a single threshold.
+  scoutRoundLimit: num(process.env.SCOUT_ROUND_LIMIT, 24),
 
   /* A seat you just paid for is yours for this long, whatever anyone
    * offers. Without it, someone pays fifteen dollars, is displaced four

@@ -130,7 +130,7 @@ export function refusalPage(row) {
     isAccessibleForFree: true,
     author: { "@type": "Organization", name: "The Wall", url: base },
     publisher: { "@type": "Organization", name: "The Wall", url: base },
-    about: { "@type": "Thing", name: `$${t}` },
+    about: { "@type": "Thing", name: `$${t}`, ...(row.mint ? { identifier: row.mint } : {}) },
     articleBody: (row.reasons || []).join(" "),
   };
 
@@ -150,6 +150,11 @@ export function refusalPage(row) {
       <ul class="ref-why" style="margin-top:22px;max-width:70ch">
         ${(row.reasons || []).map((r) => `<li>${esc(r)}</li>`).join("")}
       </ul>
+      ${row.mint ? `<p class="note" style="max-width:70ch;margin-top:26px">
+        <strong>The contract this page is about.</strong> A ticker is not an identity — several live tokens can carry the same one. This is the only thing that identifies what was measured, so you can check it yourself:
+      </p>
+      <p class="mono" style="margin-top:10px;font-size:14px;word-break:break-all;color:var(--muted)">${esc(row.mint)}</p>
+      <p class="note" style="max-width:66ch;margin-top:8px;font-size:13px">Printed, not linked. It is here to identify a measurement, not to send anyone anywhere.</p>` : ""}
       <p class="note" style="max-width:66ch;margin-top:22px">
         Each line above corresponds to a rule that was written down before this contract was looked at. <a href="/rules">Every rule is published</a>, with its threshold.
       </p>

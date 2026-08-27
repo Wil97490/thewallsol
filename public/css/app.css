@@ -72,6 +72,38 @@ a{color:var(--accent)}
 @keyframes pulse{0%,100%{opacity:1}50%{opacity:.28}}
 @media (prefers-reduced-motion: reduce){.pill i{animation:none}}
 
+/* ---- la barre du haut sur téléphone -------------------------------
+ * Elle demandait environ 510 px de contenu pour 358 px disponibles sur
+ * un écran de 390 px : la page entière se décalait latéralement et il
+ * fallait la pousser à gauche pour atteindre le dernier lien du menu.
+ *
+ * Rien n'est empilé sur deux rangs : un en-tête collant qui double de
+ * hauteur mange l'écran sur lequel on regarde le mur. On retire plutôt
+ * ce qui est décoratif ou informatif, et on garde ce qui est de la
+ * navigation. L'état de la porte reste dans le DOM — le script continue
+ * de l'écrire, il n'est simplement pas affiché ici.
+ * ------------------------------------------------------------------ */
+@media (max-width:720px){
+  .topbar-in{gap:10px}
+  .mark{font-size:18px;gap:7px}
+  .mark .glyph{width:22px;height:22px}
+  .mark span{display:none}              /* « № 01–24 » : décoratif */
+  .nav{gap:13px;font-size:12.5px}
+  #gateState{display:none}              /* informatif, pas navigable */
+  .pill{font-size:10px;padding:4px 9px;letter-spacing:.06em}
+}
+@media (max-width:390px){
+  .topbar-in{gap:8px}
+  .mark{font-size:16px}
+  .nav{gap:10px;font-size:12px}
+}
+
+/* Filet de sécurité : plus aucune page ne défile latéralement, quoi que
+ * lui fasse un contenu futur. C'est une ceinture, pas la correction —
+ * la correction est au-dessus. */
+html{overflow-x:hidden}
+
+
 /* ---- tape ---- */
 .tape{background:var(--sunk);border-bottom:1px solid var(--line);overflow:hidden}
 .tape-track{display:flex;width:max-content;animation:roll 70s linear infinite}
@@ -242,6 +274,9 @@ footer a{color:var(--faint)}
 .draft-when{font-family:var(--f-mono);font-size:11px;color:var(--faint)}
 .draft-chars{margin-left:auto;font-family:var(--f-mono);font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
 .draft-chars.over{color:var(--bad)}
+.draft-mint{grid-column:1/-1;display:flex;align-items:baseline;gap:12px;margin:0;
+  font-family:var(--f-mono);font-size:11px;color:var(--faint);word-break:break-all}
+.draft-mint a{color:var(--brass);flex:none}
 .draft textarea{width:100%;min-height:150px;resize:vertical;background:var(--sunk);color:var(--ink);
   border:1px solid var(--line);padding:12px 14px;font:inherit;font-family:var(--f-mono);font-size:13.5px;line-height:1.55}
 .draft textarea:focus{border-color:var(--accent);outline:none}
@@ -261,6 +296,12 @@ footer a{color:var(--faint)}
 .ref-tick{font-family:var(--f-mono);font-size:19px;font-weight:600;color:var(--ink)}
 .ref-when{font-family:var(--f-mono);font-size:11px;color:var(--faint);font-variant-numeric:tabular-nums}
 .ref-why{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:1px}
+/* L'adresse du contrat, sur chaque ligne du registre. Discrète, mais
+   présente : le ticker n'identifie rien, et un refus publié contre un
+   nom seul salit tous les projets qui le partagent. */
+.ref-mint{font-family:var(--f-mono);font-size:10.5px;color:var(--faint);
+  word-break:break-all;line-height:1.5;margin:0;padding-top:10px;
+  border-top:1px solid var(--line-soft)}
 .ref-why li{background:var(--sunk);border-left:2px solid var(--bad);padding:8px 11px;
   font-size:13px;line-height:1.5;color:var(--muted)}
 .ref-src{font-family:var(--f-mono);font-size:9.5px;letter-spacing:.09em;text-transform:uppercase;color:var(--faint)}

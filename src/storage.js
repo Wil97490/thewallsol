@@ -25,7 +25,14 @@ let firestore = null;
 async function db() {
   if (firestore) return firestore;
   const { Firestore } = await import("@google-cloud/firestore"); // lazy: repo stays dependency-free
-  firestore = new Firestore();
+  /* ignoreUndefinedProperties, because the alternative is what actually
+   * happened: ONE field that nobody had set (`audience`, missing from a
+   * projection) made Firestore reject the ENTIRE document, the write was
+   * wrapped in a silent catch, and the prospect list read as empty for
+   * days while the round cheerfully reported finding six leads a night.
+   *
+   * A missing field should cost you that field, not the record. */
+  firestore = new Firestore({ ignoreUndefinedProperties: true });
   return firestore;
 }
 

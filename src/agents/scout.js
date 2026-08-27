@@ -297,6 +297,7 @@ export const NOT_ABOUT_THEM = new Set([
   "pool_unread",
   "holders_unread",
   "link_uncheckable",
+  "link_absent",         // about our discovery, not about their link
   "holders_unmeasurable",
   "lp_lock_unverifiable",
 ]);
@@ -338,6 +339,16 @@ export function postWorth({ verdict, ruleIds = [], market: m = {} }) {
   }
   if (verdict === "clear") {
     return { post: false, score: 0, why: "passed — the wall does not vouch for tokens nobody submitted" };
+  }
+
+  /* A refusal carrying no rule at all did not come from the screener —
+   * it came from the moderator, which reads the ticker and the pitch,
+   * not the chain. Those refusals are about our editorial rules ("this
+   * name invokes a real person", "this promises a return"), and saying
+   * "our own checks" for them was misleading in the one place a human
+   * looks to understand why nothing was published. */
+  if (verdict === "refused" && !ruleIds.length) {
+    return { post: false, score: 0, why: "refused on its name by our content rules — no contract check failed" };
   }
 
   const ids = ruleIds.filter((id) => !NOT_ABOUT_THEM.has(id));
@@ -465,6 +476,93 @@ export function oneADay(checked, why = "un constat par jour — celui du haut es
  * ------------------------------------------------------------------ */
 
 /** Sellable outcomes only, best reach first, with a way to reach them. */
+/* ------------------------------------------------------------------ *
+ * THE STANDING LIST
+ *
+ * prospects() above returns the leads found in ONE round. For a long
+ * time that was the whole mechanism, and the comment on the /contacted
+ * route said so approvingly: "there is no CRM here and there should not
+ * be one — this is a strike-through, not a pipeline."
+ *
+ * That is good advice for a business turning away demand. This one has
+ * twenty-four seats and no customers, and the round was quietly binning
+ * two or three qualified leads every night: found at 06:00, overwritten
+ * at 06:00 the next morning, never seen by anyone. Day 20 did not
+ * remember day 1.
+ *
+ * So the list persists now. It is still not a CRM — there are no
+ * stages, no notes and no owner. A lead enters once, keeps the best
+ * figures we have seen for it, and leaves for exactly three reasons:
+ * you wrote to them, they went quiet, or they bought a seat.
+ * ------------------------------------------------------------------ */
+
+/** How long a lead stays on the list without being re-seen by a round. */
+export const PROSPECT_TTL_DAYS = 21;
+export const PROSPECT_MAX = 200;
+
+/**
+ * Fold this round's leads into the standing list.
+ *
+ * Pure — takes the old list and returns the new one, so the ordering
+ * rules are testable without a database.
+ *
+ * @param {object[]} previous  the stored list
+ * @param {object[]} found     leads from this round
+ * @param {object}   opts      { contacted:Set, now:Date }
+ */
+/* One row, trimmed. This list is a state document that grows with the
+ * market, and the round already learned that lesson once when it cached
+ * a full shortlist. Keep what a human needs to decide who to write to
+ * and how, and nothing else. */
+function lean(c) {
+  return {
+    mint: c.mint, ticker: c.ticker, verdict: c.verdict,
+    vol24Usd: c.vol24Usd, lpUsd: c.lpUsd, fdvUsd: c.fdvUsd,
+    dexId: c.dexId, ageHours: c.ageHours, audience: c.audience,
+    via: c.via, links: c.links, seatUsd: c.seatUsd,
+    reasons: (c.reasons || []).slice(0, 3),
+    outreach: c.outreach,
+  };
+}
+
+export function mergeProspects(previous = [], found = [], { contacted = new Set(), now = new Date() } = {}) {
+  const at = now.toISOString();
+  const byMint = new Map();
+
+  for (const row of Array.isArray(previous) ? previous : []) {
+    if (row?.mint) byMint.set(row.mint, { ...row });
+  }
+
+  for (const lead of found) {
+    if (!lead?.mint) continue;
+    const old = byMint.get(lead.mint);
+    byMint.set(lead.mint, {
+      ...old,
+      ...lean(lead),
+      firstSeen: old?.firstSeen || at,
+      lastSeen: at,
+      // Kept across rounds so a lead that has a quiet Tuesday is still
+      // ranked on what it was actually worth when we found it.
+      bestVol24Usd: Math.max(Number(old?.bestVol24Usd || 0), Number(lead.vol24Usd || 0)),
+      rounds: Number(old?.rounds || 0) + 1,
+    });
+  }
+
+  const cutoff = now.getTime() - PROSPECT_TTL_DAYS * 86_400_000;
+
+  return [...byMint.values()]
+    // Written to — off the list. This is the strike-through the old
+    // comment was right about; it is the ONLY thing it was right about.
+    .filter((r) => !contacted.has(r.mint))
+    // Gone quiet for three weeks. Not a judgement on them: a lead we
+    // have not re-seen in that long is a lead whose numbers we can no
+    // longer stand behind, and a stale list is how you end up pitching
+    // a seat to a project that died a fortnight ago.
+    .filter((r) => new Date(r.lastSeen || r.firstSeen || 0).getTime() >= cutoff)
+    .sort((a, b) => (b.audience || 0) - (a.audience || 0))
+    .slice(0, PROSPECT_MAX);
+}
+
 export function prospects(checked, { contacted = new Set() } = {}) {
   return checked
     .filter((c) => c && (c.verdict === "clear" || c.verdict === "flagged"))
@@ -493,10 +591,18 @@ export function outreachDraft({ ticker, verdict, reasons = [], seatUsd }) {
 
   const flag = verdict === "flagged" ? (reasons || [])[0] : null;
 
+  /* "clear" and "flagged" are two different verdicts in this system, and
+   * the opening line used to announce the first for both. Telling a
+   * flagged project "it clears them" and then naming the flag in the
+   * next sentence is a contradiction inside three lines — and it spends
+   * the one thing this outreach has going for it, which is that we say
+   * exactly what we measured. */
   const lines = [
-    `We ran ${t} through our contract checks this morning. It clears them.`,
     flag
-      ? `One thing would be printed on the seat, publicly, for as long as it is up: ${flag}`
+      ? `We ran ${t} through our contract checks this morning. It passed — with one flag, which we would print rather than hide.`
+      : `We ran ${t} through our contract checks this morning. It passed all of them.`,
+    flag
+      ? `The flag, printed on the seat publicly for as long as it is up: ${flag}`
       : null,
     `The Wall is twenty-four advertising seats on one page, and nothing goes up without passing those checks first. ${price ? `A seat starts at ${price}.` : ""}`.trim(),
     `Every contract we turn away is published too, with the measurement. thewallsol.com/refused`,

@@ -1,10 +1,11 @@
 import "./_helpers.js";
-import test from "node:test";
+import test, { describe } from "node:test";
 import assert from "node:assert/strict";
 
 import {
   SOURCES, EXCLUDED_MINTS, ELIGIBILITY,
   eligible, audience, postWorth, rank, oneADay,
+  mergeProspects, NOT_ABOUT_THEM, PROSPECT_MAX,
 } from "../src/agents/scout.js";
 import { probeDraft, fit } from "../src/agents/poster.js";
 import { guardOutput } from "../src/guardrails.js";
@@ -475,7 +476,10 @@ test("the loudest prospect is first", () => {
 
 test("outreach states our door, never their token", () => {
   const d = outreachDraft({ ticker: "MOGGO", verdict: "clear", seatUsd: 15 });
-  assert.match(d, /It clears them/);
+  // "clears them" was the old wording, and it was sent to FLAGGED
+  // projects too — announcing one verdict and then naming the flag of
+  // another, three lines apart.
+  assert.match(d, /It passed all of them/);
   // "It looks good" is a claim about their asset. We do not make those,
   // in public or in a DM.
   assert.doesNotMatch(d, /\b(safe|legit|solid|good|promising|strong)\b/i);
@@ -490,7 +494,8 @@ test("a flagged prospect is told the flag before they find it", () => {
     ticker: "SLOPPY", verdict: "flagged", seatUsd: 15,
     reasons: ["Liquidity is locked by the launchpad's own migration, not by an independent lock."],
   });
-  assert.match(d, /printed on the seat, publicly/);
+  assert.match(d, /passed — with one flag/, "the opening line must carry the real verdict");
+  assert.match(d, /printed on the seat publicly/);
   assert.match(d, /launchpad's own migration/);
 });
 
@@ -561,4 +566,170 @@ test("notre propre token ne peut jamais être un candidat", () => {
   const e = eligible(loud({ mint: OURS }));
   assert.equal(e.ok, false);
   assert.equal(e.kind, "excluded");
+});
+
+/* ------------------------------------------------------------------ *
+ * THE STANDING PROSPECT LIST
+ *
+ * prospects() finds leads in one round. Before mergeProspects() existed
+ * that was the whole mechanism: the round found two or three qualified
+ * projects a night and the next round overwrote them. Twenty nights of
+ * work, nothing to show, and the operator's honest summary was
+ * "toujours pas de prospect".
+ * ------------------------------------------------------------------ */
+describe("the prospect list accumulates instead of evaporating", () => {
+  const lead = (mint, extra = {}) => ({
+    mint, ticker: mint.toUpperCase(), verdict: "flagged", audience: 5,
+    vol24Usd: 50_000, links: { twitter: "https://x.com/" + mint }, ...extra,
+  });
+  const day = (n) => new Date(Date.UTC(2026, 0, n));
+
+  test("a lead found on night one is still there on night two", () => {
+    const one = mergeProspects([], [lead("aaa")], { now: day(1) });
+    const two = mergeProspects(one, [lead("bbb")], { now: day(2) });
+    assert.deepEqual(two.map((r) => r.mint).sort(), ["aaa", "bbb"],
+      "night two must not overwrite night one");
+  });
+
+  test("re-seeing a lead updates it without duplicating it", () => {
+    const one = mergeProspects([], [lead("aaa", { vol24Usd: 90_000 })], { now: day(1) });
+    const two = mergeProspects(one, [lead("aaa", { vol24Usd: 10_000 })], { now: day(2) });
+    assert.equal(two.length, 1);
+    assert.equal(two[0].rounds, 2);
+    assert.equal(two[0].firstSeen, day(1).toISOString(), "first sighting is kept");
+    assert.equal(two[0].lastSeen, day(2).toISOString());
+    assert.equal(two[0].bestVol24Usd, 90_000,
+      "a quiet Tuesday must not erase what the project was worth when we found it");
+  });
+
+  test("writing to a lead takes it off the list", () => {
+    const one = mergeProspects([], [lead("aaa"), lead("bbb")], { now: day(1) });
+    const two = mergeProspects(one, [], { contacted: new Set(["aaa"]), now: day(2) });
+    assert.deepEqual(two.map((r) => r.mint), ["bbb"]);
+  });
+
+  test("a lead nobody has re-seen in three weeks falls off", () => {
+    const one = mergeProspects([], [lead("aaa")], { now: day(1) });
+    const later = mergeProspects(one, [], { now: new Date(Date.UTC(2026, 1, 20)) });
+    assert.equal(later.length, 0, "stale numbers must not be pitched as current");
+  });
+
+  test("the list is ranked by audience and bounded", () => {
+    const many = Array.from({ length: PROSPECT_MAX + 40 }, (_, i) =>
+      lead("m" + i, { audience: i }));
+    const out = mergeProspects([], many, { now: day(1) });
+    assert.equal(out.length, PROSPECT_MAX);
+    assert.ok(out[0].audience > out[out.length - 1].audience, "highest audience first");
+  });
+
+  test("an empty round leaves the standing list untouched", () => {
+    const one = mergeProspects([], [lead("aaa")], { now: day(1) });
+    const two = mergeProspects(one, [], { now: day(2) });
+    assert.equal(two.length, 1,
+      "a night when discovery finds nothing is not a night that erases the pipeline");
+  });
+});
+
+describe("a refusal that rests only on a missing link is never publishable", () => {
+  test("link_absent is a fact about us", () => {
+    assert.ok(NOT_ABOUT_THEM.has("link_absent"));
+  });
+
+  test("postWorth withholds it even if it somehow arrives as a refusal", () => {
+    const w = postWorth({
+      verdict: "refused",
+      ruleIds: ["link_absent"],
+      market: { vol24Usd: 11_000_000, txns24: 40_000, change24: 5, via: ["ads"] },
+    });
+    assert.equal(w.post, false,
+      "$11M of volume must not buy its way past the restraint");
+  });
+});
+
+describe("a moderation refusal is not a contract finding", () => {
+  test("a refusal with no rule is labelled for what it is", () => {
+    const w = postWorth({
+      verdict: "refused", ruleIds: [],
+      market: { vol24Usd: 12_000_000, txns24: 50_000, change24: 3, via: ["boost_top"] },
+    });
+    assert.equal(w.post, false);
+    assert.match(w.why, /content rules/i,
+      "saying 'our own checks' hides that the moderator refused it on its NAME");
+    assert.doesNotMatch(w.why, /our own checks/i);
+  });
+
+  test("a real contract finding is still publishable", () => {
+    const w = postWorth({
+      verdict: "refused", ruleIds: ["mint_authority"],
+      market: { vol24Usd: 1_000_000, txns24: 8_000, change24: 10, via: ["boost_top"] },
+    });
+    assert.equal(w.post, true, "the fix must not swallow genuine refusals");
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * WHAT FIRESTORE WILL AND WILL NOT SWALLOW
+ *
+ * The standing list is written with db.setState(), which is a Firestore
+ * document. Firestore rejects `undefined` outright — and the write was
+ * wrapped in a silent catch, so ONE field missing from a projection
+ * (`audience`) meant the list never persisted at all, while the round
+ * went on reporting "6 on the list, 6 new tonight" every single night.
+ *
+ * This test is the cheap version of that lesson.
+ * ------------------------------------------------------------------ */
+describe("every stored prospect row is storable", () => {
+  const undef = (obj, path = "") => {
+    const bad = [];
+    for (const [k, v] of Object.entries(obj)) {
+      const here = path ? `${path}.${k}` : k;
+      if (v === undefined) bad.push(here);
+      else if (v && typeof v === "object" && !Array.isArray(v)) bad.push(...undef(v, here));
+    }
+    return bad;
+  };
+
+  test("a complete lead survives the round trip with no undefined", () => {
+    const lead = {
+      mint: "abc", ticker: "AAA", verdict: "flagged", reasons: ["r"],
+      vol24Usd: 1, lpUsd: 2, fdvUsd: 3, dexId: "raydium", ageHours: 4,
+      via: ["ads"], links: { twitter: "u", telegram: null, website: null, other: [] },
+      seatUsd: 15, audience: 7, outreach: "hello",
+    };
+    const [row] = mergeProspects([], [lead], { now: new Date(Date.UTC(2026, 0, 1)) });
+    assert.deepEqual(undef(row), [], "Firestore rejects the whole document over any one of these");
+  });
+
+  test("a lead missing audience is caught here rather than in production", () => {
+    const { audience, ...noAudience } = {
+      mint: "abc", ticker: "AAA", verdict: "flagged", reasons: [],
+      vol24Usd: 1, lpUsd: 2, fdvUsd: 3, dexId: "d", ageHours: 4,
+      via: [], links: {}, seatUsd: 15, audience: 7, outreach: "x",
+    };
+    const [row] = mergeProspects([], [noAudience], { now: new Date(Date.UTC(2026, 0, 1)) });
+    assert.deepEqual(undef(row), ["audience"],
+      "this is the exact shape that silently emptied the list in production");
+  });
+});
+
+describe("the outreach message states the verdict it actually got", () => {
+  const flag = "Liquidity is locked by the launchpad's own migration, not by an independent lock.";
+
+  test("a flagged project is not told it cleared", () => {
+    const d = outreachDraft({ ticker: "MARTIANS", verdict: "flagged", reasons: [flag], seatUsd: 15 });
+    assert.doesNotMatch(d, /clears them/i,
+      "'clear' is a different verdict in this system, and the next line names the flag — it contradicted itself in three lines");
+    assert.match(d, /passed — with one flag/i);
+    assert.ok(d.includes(flag), "the flag itself must survive into the message");
+  });
+
+  test("a clear project is told exactly that, with no flag paragraph", () => {
+    const d = outreachDraft({ ticker: "AAA", verdict: "clear", reasons: [], seatUsd: 15 });
+    assert.match(d, /passed all of them/i);
+    assert.doesNotMatch(d, /flag/i, "there is no flag to print, so no sentence about one");
+  });
+
+  test("the seat price quoted is the one passed in", () => {
+    assert.match(outreachDraft({ ticker: "AAA", verdict: "clear", seatUsd: 40 }), /starts at \$40/);
+  });
 });

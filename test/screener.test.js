@@ -192,3 +192,55 @@ test("a mint with no pool is refused for having no pool, and nothing else", asyn
   // only takes the first two reasons — it is the wrong finding.
   assert.ok(!out.reasons.some((r) => /under the \$/.test(r)), out.reasons.join(" | "));
 });
+
+/* ------------------------------------------------------------------ *
+ * THE $PISTACIO REGRESSION
+ *
+ * A round picked up a contract with $11M of daily volume that nobody
+ * had submitted. DexScreener had no profile URL for it, so the probe
+ * ran with link=null, facts.js set linkThreat="missing", and that
+ * value was tested by `link_threat` — a HARD rule — sitting next to
+ * "flagged malicious". The system refused the contract and produced a
+ * finished post whose stated finding was:
+ *
+ *     "No destination link was supplied."
+ *
+ * Nobody had supplied anything. We published our own empty field as a
+ * measurement of somebody else's token.
+ *
+ * An absence is not a discovery. These tests pin that.
+ * ------------------------------------------------------------------ */
+describe("a missing link is a fact about us, never about them", () => {
+  const noLink = { ...OK_FACTS, linkThreat: "missing", linkStatus: 0, finalUrl: null };
+
+  test("no link means the check did not run — incomplete, not refused", async () => {
+    const r = await screen(noLink);
+    assert.equal(r.verdict, "incomplete",
+      "a contract must never be refused for a link WE failed to bring");
+    assert.ok(r.ruleIds.includes("link_absent"), `expected link_absent, got ${r.ruleIds}`);
+    assert.ok(!r.ruleIds.includes("link_threat"),
+      "an absent link must not be reported as a security finding");
+  });
+
+  test("nothing in the reasons claims the project supplied anything", async () => {
+    const r = await screen(noLink);
+    const text = r.reasons.join(" ");
+    assert.ok(!/supplied/i.test(text),
+      `the exact sentence that shipped: ${JSON.stringify(text)}`);
+    assert.ok(!/malicious/i.test(text),
+      "a missing link must never borrow the wording of a real threat");
+  });
+
+  test("a link that IS flagged still refuses — the fix must not blunt the rule", async () => {
+    const r = await screen({ ...OK_FACTS, linkThreat: "SOCIAL_ENGINEERING" });
+    assert.equal(r.verdict, "refused");
+    assert.ok(r.ruleIds.includes("link_threat"));
+    assert.match(r.reasons.join(" "), /malicious/i);
+  });
+
+  test("an unchecked link is still held, not refused", async () => {
+    const r = await screen({ ...OK_FACTS, linkThreat: "unchecked" });
+    assert.equal(r.verdict, "incomplete");
+    assert.ok(r.ruleIds.includes("link_uncheckable"));
+  });
+});
