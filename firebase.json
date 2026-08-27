@@ -1,0 +1,9 @@
+{
+  "hosting": {
+    "site": "thewallsol",
+    "rewrites": [{
+      "source": "**",
+      "run": { "serviceId": "wall", "region": "europe-west1" }
+    }]
+  }
+}
