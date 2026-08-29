@@ -174,6 +174,36 @@ for path in "/" "/terms" "/rules" "/refused" "/checks" "/checks/pool-depth"; do
   fi
 done
 has "$URL/terms" "Refunds" "terms and refunds are published"
+# Deux canaux de contact, pas un. Un droit de réponse qui dépend d'un
+# seul chemin est un droit de réponse qui tombe avec ce chemin.
+for path in "/" "/terms" "/rules" "/refused"; do
+  has "$URL$path" "t.me/ThewallSol" "$(printf '%-24s mène au Telegram' "$path")"
+done
+
+# Un champ à trous affiché sur une page publique. /terms a servi
+# « [to be completed] » pendant des jours sous « Who publishes this
+# site ». Les commentaires HTML sont retirés : la note qui explique
+# leur retrait cite le marqueur, et personne ne la lit.
+for path in "/" "/terms" "/rules" "/refused"; do
+  # `sed 's/<!--.*-->//g'` travaille LIGNE PAR LIGNE. Le commentaire qui
+  # explique le retrait des champs à trous dans terms.html tient sur
+  # dix-sept lignes : sed n'en retirait rien, et la ligne qui cite
+  # « [to be completed] » déclenchait l'alarme. Le test Node, lui,
+  # utilisait une regex multiligne et passait — les deux contrôles
+  # disaient donc le contraire l'un de l'autre.
+  #
+  # Une fausse alerte dans une barrière de publication est un bug à part
+  # entière : elle bloque une version saine, et le réflexe suivant est de
+  # désactiver le contrôle. Python fait ici exactement ce que fait le
+  # test, pour qu'ils ne puissent plus diverger.
+  if curl -sf "$URL$path" 2>/dev/null \
+     | python3 -c "import sys,re;print(re.sub(r'<!--.*?-->','',sys.stdin.read(),flags=re.S))" \
+     | grep -qi "to be completed"; then
+    fail "$path affiche un champ à trous"
+  else
+    pass "$(printf '%-24s aucun champ à trous' "$path")"
+  fi
+done
 # La page a affirme le contraire pendant une journee. Un site qui
 # controle des contrats ne peut pas se permettre cette ligne-la fausse.
 has "$URL/rules" "There is a token. We launched it." "the token disclosure is live"

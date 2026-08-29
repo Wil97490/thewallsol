@@ -3,6 +3,7 @@ import assert from "node:assert/strict";
 import "./_helpers.js";
 import { OK_FACTS } from "./_helpers.js";
 import { screen, publicBadge } from "../src/agents/screener.js";
+import { redirectFacts } from "../src/facts.js";
 
 /* ------------------------------------------------------------------ *
  * The release gate, as code. Run with: npm test
@@ -47,7 +48,7 @@ describe("soft flags — sellable, but the badge says so", () => {
     ["thin pool",       { lpUsd: 9000 },        /thin liquidity/i],
     ["young pool",      { ageHours: 5 },        /hours old/i],
     ["concentrated",    { topHolderPct: 31 },   /31\.0%/],
-    ["redirecting link",{ linkRedirected: true, finalUrl: "https://elsewhere.example/x" }, /redirects/i],
+    ["offsite link",    { linkOffsite: true, finalUrl: "https://elsewhere.example/x" }, /redirects/i],
     ["bot-filtered link", { linkStatus: 403 },  /could not confirm/i],
     ["rate-limited link", { linkStatus: 429 },  /could not confirm/i],
   ];
@@ -58,6 +59,36 @@ describe("soft flags — sellable, but the badge says so", () => {
       assert.ok(out.reasons.some((r) => why.test(r)), `flagged, but not for the expected reason: ${out.reasons}`);
     });
   }
+});
+
+describe("une redirection chez soi n'est pas un constat sur eux", () => {
+  /* $C4T, en production : lien https://c4t.cat, aucune redirection, et
+   * pourtant « The link redirects before it lands (ends at c4t.cat) »
+   * prêt à partir sous leur siège. finalUrl est NORMALISÉE — la barre
+   * oblique finale suffisait à déclencher la règle.
+   *
+   * Deux fautes, testées séparément : compter un saut qui n'a pas eu
+   * lieu, et traiter la plomberie d'un site comme une découverte. */
+
+  test("aucun saut : la barre oblique de normalisation n'en fait pas une", async () => {
+    const out = await screen({ ...OK_FACTS, linkOffsite: false, linkHops: 0,
+      finalUrl: "https://c4t.cat/" });
+    assert.equal(out.verdict, "clear", `pas de saut, donc rien à signaler : ${out.reasons}`);
+  });
+
+  test("http → https, apex → www : la même maison ne se signale pas", async () => {
+    for (const final of ["https://c4t.cat/", "https://www.c4t.cat/", "https://app.c4t.cat/"]) {
+      const out = await screen({ ...OK_FACTS, linkRedirected: true, linkOffsite: false, finalUrl: final });
+      assert.ok(!out.reasons.some((r) => /redirects/i.test(r)),
+        `${final} a été signalé alors qu'il reste chez le même opérateur`);
+    }
+  });
+
+  test("un saut vers un autre domaine, lui, se dit", async () => {
+    const out = await screen({ ...OK_FACTS, linkOffsite: true, finalUrl: "https://linktr.ee/someone" });
+    assert.equal(out.verdict, "flagged");
+    assert.ok(out.reasons.some((r) => /redirects/i.test(r) && /linktr\.ee/.test(r)));
+  });
 });
 
 test("a clean token clears", async () => {
@@ -267,5 +298,35 @@ describe("un lien absent ne doit pas condamner le contrat", () => {
     const withLink = await screen({ ...OK_FACTS });
     assert.equal(withLink.verdict, "clear",
       "si ce fait-set passe avec un lien, l'absence de lien ne dit rien du contrat");
+  });
+});
+
+describe("redirectFacts — le calcul qui a accusé $C4T", () => {
+  /* Le cas exact, tel qu'il est sorti de la production le 28 août.
+   * DexScreener donne le lien SANS barre oblique ; safeGet renvoie une
+   * URL normalisée, donc AVEC. L'ancienne ligne comparait les deux
+   * chaînes et concluait à une redirection. Aucun saut n'avait eu lieu. */
+  test("la normalisation d'URL n'est pas une redirection", () => {
+    const f = redirectFacts("https://c4t.cat", { hops: 0, finalUrl: "https://c4t.cat/" });
+    assert.equal(f.linkHops, 0);
+    assert.equal(f.linkRedirected, false, "un saut a été compté sans qu'il y en ait eu");
+    assert.equal(f.linkOffsite, false, "un constat public pour une barre oblique");
+  });
+
+  test("un vrai saut chez soi est un saut, et n'est pas un constat", () => {
+    const f = redirectFacts("http://c4t.cat", { hops: 1, finalUrl: "https://www.c4t.cat/" });
+    assert.equal(f.linkRedirected, true, "le saut a bien eu lieu, on ne le nie pas");
+    assert.equal(f.linkOffsite, false, "apex → www n'est pas un atterrissage ailleurs");
+  });
+
+  test("un saut vers un autre domaine est les deux", () => {
+    const f = redirectFacts("https://c4t.cat", { hops: 2, finalUrl: "https://linktr.ee/c4t" });
+    assert.equal(f.linkRedirected, true);
+    assert.equal(f.linkOffsite, true);
+  });
+
+  test("une réponse absente ne fabrique rien", () => {
+    const f = redirectFacts("https://c4t.cat", null);
+    assert.deepEqual(f, { linkHops: 0, linkRedirected: false, linkOffsite: false });
   });
 });

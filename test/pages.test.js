@@ -331,3 +331,68 @@ describe("what the wall saw — counted, never named", () => {
     assert.doesNotMatch(html, /\b0 contracts read\b/);
   });
 });
+
+describe("le droit de réponse a le rang d'une section, pas d'une note", () => {
+  /* La phrase existait, en gris pâle et en 13,5px, comme dernière ligne
+   * de l'encadré « What this page does not say ». Sur une page qui nomme
+   * un contrat et qui ressort dans Google sur son ticker, c'est la seule
+   * voie de recours de la personne mesurée. Elle ne peut pas avoir le
+   * rang typographique d'une mention légale. */
+  const row = {
+    ticker: "TEST", slug: "test", at: new Date().toISOString(),
+    mint: "So11111111111111111111111111111111111111112",
+    reasons: ["Mint authority is still open — the supply can be inflated at any time."],
+    ruleIds: ["mint_authority"], source: "probe",
+  };
+
+  test("l'adresse de recours est joignable depuis la page", () => {
+    assert.match(refusalPage(row), /mailto:contact@thewallsol\.com/);
+  });
+
+  test("elle a son propre titre de section", () => {
+    const html = refusalPage(row);
+    assert.match(html, /If we got this wrong/,
+      "le recours n'a pas de titre : il est redevenu une note de bas de page");
+    assert.match(html, /class="reply"/);
+  });
+
+  test("elle n'est plus la dernière ligne grise de l'encadré", () => {
+    // pledge-last est le style de la note qui ferme une section. Le
+    // recours ne doit plus y vivre.
+    const html = refusalPage(row);
+    const bloc = html.slice(html.indexOf("What this page does not say"), html.indexOf('class="reply"'));
+    assert.ok(!/pledge-last/.test(bloc) || !/line on this page is wrong/.test(bloc),
+      "le recours est retombé dans la note de pied de l'encadré");
+  });
+
+  test("la promesse tenue est celle que le code tient vraiment", () => {
+    // « la page ne disparaît pas, elle dit qu'elle a été retirée » —
+    // c'est refusalGonePage(), et un 410. Si cette page cessait de le
+    // dire, la promesse deviendrait fausse.
+    assert.match(refusalPage(row), /says it was withdrawn/);
+    assert.match(refusalGonePage("test"), /taken down/i);
+  });
+});
+
+describe("le second canal de contact est joignable depuis les pages servies", () => {
+  /* Une adresse email seule est un canal, pas deux. Le compte Telegram
+   * existe désormais ; s'il n'est nulle part sur le site, il ne sert à
+   * rien — et le droit de réponse d'un projet nommé publiquement ne
+   * doit pas dépendre d'un seul chemin. */
+  const row = {
+    ticker: "TEST", slug: "test", at: new Date().toISOString(),
+    reasons: ["Mint authority is still open — the supply can be inflated at any time."],
+    ruleIds: ["mint_authority"], source: "probe",
+  };
+
+  test("le pied de page mène au Telegram", () => {
+    assert.match(refusalPage(row), /t\.me\/ThewallSol/);
+    assert.match(seenPage({ last: null, history: [] }), /t\.me\/ThewallSol/);
+  });
+
+  test("le droit de réponse offre les deux portes", () => {
+    const bloc = refusalPage(row).match(/class="reply"[\s\S]*?<\/div>/)[0];
+    assert.match(bloc, /mailto:contact@thewallsol\.com/, "l'email a disparu du recours");
+    assert.match(bloc, /t\.me\/ThewallSol/, "le Telegram n'est pas dans le recours");
+  });
+});

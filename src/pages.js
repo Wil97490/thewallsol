@@ -96,7 +96,7 @@ ${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script
 <main>
 ${body}
 </main>
-<footer class="wrap"><a href="/">Back to the wall</a> · <a href="/seen">Last night</a> · <a href="/refused">The ledger</a> · <a href="/rules">The rules</a> · <a href="/checks">Run the checks yourself</a> · <a href="/terms">Terms</a> · <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a></footer>
+<footer class="wrap"><a href="/">Back to the wall</a> · <a href="/seen">Last night</a> · <a href="/refused">The ledger</a> · <a href="/rules">The rules</a> · <a href="/checks">Run the checks yourself</a> · <a href="/terms">Terms</a> · <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a> · <a href="https://t.me/ThewallSol" rel="me noopener">Telegram</a></footer>
 </body>
 </html>`;
 }
@@ -187,7 +187,27 @@ export function refusalPage(row) {
         <p><strong>This is a door policy, not a verdict on the token.</strong> The only question answered here is whether this contract could buy advertising space on our wall. We are not a rating agency, we have no opinion on whether anyone should hold, buy or sell anything, and we are not qualified to have one.</p>
         <p><strong>It is a measurement at one moment.</strong> ${esc(when(row.at))}, and nothing since. A contract can be fixed the hour after it is checked — an authority revoked, liquidity added — and this page will not know.</p>
         ${probe ? `<p><strong>Nobody submitted this contract.</strong> No one connected to $${esc(t)} asked us for anything and no money was involved. We check contracts that are buying attention elsewhere, and we publish what we find. <a href="/rules#unsubmitted">How they are chosen.</a></p>` : ""}
-        <p class="pledge-last">If a line on this page is wrong, write to <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a> with the mint address. A measurement we got wrong comes down, and the correction is public.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- Le droit de réponse, à son rang.
+       Cette phrase a vécu comme dernière ligne de l'encadré au-dessus :
+       gris pâle, 13,5px, sous un filet pointillé, au rang typographique
+       d'une mention légale. Sur une page qui NOMME un contrat et qui
+       ressort dans Google sur son propre ticker, ce n'est pas une note
+       de bas de page — c'est la seule voie de recours de la personne
+       qu'on vient de mesurer en public. Le texte n'a pas changé ; il a
+       cessé d'être écrit en petit. -->
+  <section>
+    <div class="wrap">
+      <div class="sec-head">
+        <p class="eyebrow">Your right of reply</p>
+        <h2>If we got this wrong</h2>
+      </div>
+      <div class="reply">
+        <p>Write to <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a> with the mint address and the line you are disputing, or message <a href="https://t.me/ThewallSol" rel="me noopener">@ThewallSol on Telegram</a>.</p>
+        <p><strong>A measurement we got wrong comes down, and the correction is public.</strong> The page does not quietly disappear — it stays at this address and says it was withdrawn. A ledger you can erase is not a ledger.</p>
       </div>
     </div>
   </section>

@@ -5,7 +5,7 @@ import assert from "node:assert/strict";
 import {
   SOURCES, EXCLUDED_MINTS, ELIGIBILITY,
   eligible, audience, postWorth, rank, oneADay,
-  mergeProspects, NOT_ABOUT_THEM, PROSPECT_MAX,
+  mergeProspects, NOT_ABOUT_THEM, PROSPECT_MAX, pushNight,
 } from "../src/agents/scout.js";
 import { probeDraft, fit } from "../src/agents/poster.js";
 import { guardOutput } from "../src/guardrails.js";
@@ -760,4 +760,97 @@ test("le message ne prétend pas savoir quelle heure il est", () => {
     assert.doesNotMatch(d, /this morning|tonight|this afternoon|today/i,
       "un brouillon envoyé le soir affirmait l'avoir mesuré le matin");
   }
+});
+
+describe("le démarchage prévient de TOUS les drapeaux", () => {
+  /* $PISSTACIO, en vrai : pool fin ET verrou de launchpad. Le brouillon
+   * annonçait « one flag » et n'en imprimait qu'un — alors que le siège
+   * en aurait affiché deux. Un siège qui arrive en portant une ligne
+   * dont personne n'a prévenu l'acheteur est une conversation de
+   * remboursement, et c'est la seule chose que cette fonction doit
+   * empêcher. */
+  const deux = {
+    ticker: "PISSTACIO", verdict: "flagged", seatUsd: 15,
+    reasons: [
+      "Thin liquidity: $2,593 in the pool.",
+      "Liquidity is locked by the launchpad's own migration, not by an independent lock.",
+    ],
+  };
+
+  test("chaque motif mesuré figure dans le message", () => {
+    const d = outreachDraft(deux);
+    for (const r of deux.reasons) {
+      assert.ok(d.includes(r), `le drapeau « ${r} » n'est pas dans le message`);
+    }
+  });
+
+  test("le compte annoncé est le compte réel", () => {
+    assert.match(outreachDraft(deux), /with 2 flags/);
+    assert.match(outreachDraft({ ...deux, reasons: [deux.reasons[0]] }), /with one flag/);
+  });
+
+  test("un seul drapeau garde le singulier", () => {
+    const d = outreachDraft({ ...deux, reasons: [deux.reasons[0]] });
+    assert.match(d, /The flag, printed/);
+    assert.ok(!d.includes("The flags"));
+  });
+
+  test("un contrat sans drapeau ne s'en invente pas", () => {
+    const d = outreachDraft({ ticker: "CLEAN", verdict: "clear", reasons: [], seatUsd: 15 });
+    assert.match(d, /It passed all of them/);
+    assert.ok(!d.includes("flag"));
+  });
+
+  test("« flagged » sans motif n'écrit rien plutôt que d'affirmer", () => {
+    // Le système sait qu'il y a quelque chose et ne sait pas le dire.
+    // Annoncer « it passed all of them » serait faux.
+    assert.equal(outreachDraft({ ticker: "X", verdict: "flagged", reasons: [], seatUsd: 15 }), null);
+  });
+});
+
+describe("une ronde maigre n'efface pas la nuit", () => {
+  /* Le 28 août, /seen annonçait « 1 contrat lu sur la chaîne » et
+   * « rien trouvé cette nuit ». La ronde de nuit en avait lu deux
+   * douzaines. Une seconde ronde le même jour — qui ne trouve presque
+   * plus rien de neuf, puisqu'un contrat n'est lu qu'une fois — avait
+   * écrasé la ligne complète par la sienne.
+   *
+   * La page était donc exacte sur ce qu'elle avait en mémoire, et
+   * fausse sur la nuit. Sur un site qui ne publie que ce qu'il a
+   * mesuré, effacer une mesure est la même faute que d'en inventer. */
+  const nuit = { at: "2026-08-28T05:00:00Z", seen: 80, checked: 24, findings: { young: 6 } };
+  const maigre = { at: "2026-08-28T07:21:00Z", seen: 80, checked: 1, findings: {} };
+
+  test("la relance plus maigre ne remplace pas", () => {
+    const h = pushNight(pushNight([], nuit), maigre);
+    assert.equal(h.length, 1, "toujours une seule ligne par nuit");
+    assert.equal(h[0].checked, 24, "la nuit complète a été effacée par une relance");
+    assert.equal(h[0].at, nuit.at);
+  });
+
+  test("mais une relance plus complète remplace bien", () => {
+    const grosse = { at: "2026-08-28T09:00:00Z", seen: 90, checked: 31, findings: {} };
+    const h = pushNight(pushNight([], nuit), grosse);
+    assert.equal(h.length, 1);
+    assert.equal(h[0].checked, 31);
+  });
+
+  test("une nuit ne compte toujours qu'une fois", () => {
+    let h = [];
+    for (const c of [24, 3, 9, 1, 12]) h = pushNight(h, { at: "2026-08-28T05:00:00Z", checked: c });
+    assert.equal(h.length, 1, "le total de nuits a été gonflé par des relances");
+    assert.equal(h[0].checked, 24);
+  });
+
+  test("un autre jour reste un autre jour", () => {
+    const h = pushNight(pushNight([], nuit), { at: "2026-08-29T05:00:00Z", checked: 2 });
+    assert.equal(h.length, 2);
+    assert.equal(h[0].checked, 2, "la nuit la plus récente est en tête");
+  });
+
+  test("une ligne sans date ne détruit rien", () => {
+    const h = pushNight(pushNight([], nuit), { checked: 99 });
+    assert.equal(h.length, 1);
+    assert.equal(h[0].checked, 24);
+  });
 });

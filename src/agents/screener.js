@@ -218,8 +218,13 @@ export const SOFT_RULES = [
     reason: (f) => `The destination answered ${f.linkStatus} to our check, so we could not confirm where it lands.`,
   },
   {
+    /* `linkRedirected` testait « il y a eu un saut ». Un lien qui part
+     * de c4t.cat et arrive sur c4t.cat en avait fait un, selon nous, et
+     * la ligne partait sous leur siège. Ce qui vaut d'être dit, c'est
+     * qu'un lien n'atterrit pas là où il annonce — donc un saut qui
+     * CHANGE de domaine. Le reste est notre plomberie. */
     id: "redirect",
-    test: (f) => f.linkRedirected === true,
+    test: (f) => f.linkOffsite === true,
     reason: (f) => `The link redirects before it lands${f.finalUrl ? ` (ends at ${safeHost(f.finalUrl)})` : ""}.`,
   },
   {

@@ -1,6 +1,6 @@
 import { config, SYSTEM_HOLDERS, isProd } from "./config.js";
 import { deadline, withTimeout } from "./lib/deadline.js";
-import { safeGet, vetUrl, UnsafeUrlError } from "./lib/net.js";
+import { safeGet, vetUrl, UnsafeUrlError, sameSite } from "./lib/net.js";
 import { isSolanaAddress, decodeBase58 } from "./lib/base58.js";
 import { isOnCurve } from "./lib/ed25519.js";
 import { rpc } from "./solana/rpc.js";
@@ -182,6 +182,28 @@ async function safeBrowsing(urls, ms) {
   }
 }
 
+/**
+ * Ce qu'un aller-retour HTTP dit — et ne dit pas — d'une redirection.
+ *
+ * Séparé de linkFacts() pour une raison précise : tant que ce calcul
+ * vivait à l'intérieur d'un appel réseau, aucun test ne pouvait
+ * l'atteindre, et le bug $C4T est passé au vert dans une suite de 357
+ * tests. Une décision qu'on ne peut pas exécuter sans socket est une
+ * décision que personne ne vérifie.
+ *
+ * @param {string} link      l'URL de départ, telle que fournie
+ * @param {{hops:number, finalUrl:string}} reached  ce que safeGet a vu
+ */
+export function redirectFacts(link, reached) {
+  const hops = Number(reached?.hops || 0);
+  const redirected = hops > 0;
+  return {
+    linkHops: hops,
+    linkRedirected: redirected,
+    linkOffsite: redirected && !sameSite(link, reached?.finalUrl),
+  };
+}
+
 export async function linkFacts(link, ms) {
   if (!link) return { linkStatus: 0, linkThreat: "missing", finalUrl: null, linkHops: 0 };
   try { vetUrl(link); }
@@ -208,8 +230,7 @@ export async function linkFacts(link, ms) {
     linkStatus: reached.status,
     linkThreat: threat,
     finalUrl: reached.finalUrl,
-    linkHops: reached.hops,
-    linkRedirected: reached.finalUrl !== link,
+    ...redirectFacts(link, reached),
   };
 }
 
@@ -230,7 +251,7 @@ const FIXTURE = {
   dexId: "raydium", priceUsd: 0.0000412,
   topHolderPct: 8.4, holdersSampled: 20, topHolderAddress: null,
   ageHours: 96, tickerTaken: false,
-  linkStatus: 200, linkThreat: "none", finalUrl: null, linkHops: 0, linkRedirected: false,
+  linkStatus: 200, linkThreat: "none", finalUrl: null, linkHops: 0, linkRedirected: false, linkOffsite: false,
   gatherError: null,
 };
 
@@ -319,6 +340,7 @@ export async function gatherFacts({ mint, link, ticker, isTickerTaken }, opts = 
     finalUrl: l.finalUrl,
     linkHops: l.linkHops || 0,
     linkRedirected: Boolean(l.linkRedirected),
+    linkOffsite: Boolean(l.linkOffsite),
     gatherError: null,
     gatheredAt: new Date().toISOString(),
     budgetLeftMs: dl.remaining(),

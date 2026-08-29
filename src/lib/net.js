@@ -102,6 +102,30 @@ export function vetUrl(raw, { allowHttp = false } = {}) {
 }
 
 /**
+ * Deux URL vivent-elles chez le même opérateur ?
+ *
+ * Existe parce qu'un lien qui part de `https://c4t.cat` et arrive sur
+ * `https://c4t.cat/` a été publié comme « The link redirects before it
+ * lands (ends at c4t.cat) » — une phrase qui, lue par la personne dont
+ * c'est le site, ne peut produire qu'une réaction : ces gens ne savent
+ * pas ce qu'ils mesurent.
+ *
+ * http → https, apex → www, apex → sous-domaine : c'est le même
+ * opérateur, et ce n'est pas un constat sur l'endroit où le lien
+ * atterrit. Un saut vers un AUTRE domaine, si.
+ *
+ * Échoue fermé : une URL illisible n'est pas déclarée « même site ».
+ */
+export function sameSite(a, b) {
+  try {
+    const h = (u) => new URL(u).hostname.replace(/^www\./i, "").toLowerCase();
+    const ha = h(a), hb = h(b);
+    if (!ha || !hb) return false;
+    return ha === hb || ha.endsWith("." + hb) || hb.endsWith("." + ha);
+  } catch { return false; }
+}
+
+/**
  * GET a buyer-supplied URL. Returns { status, finalUrl, hops }.
  * Never throws for a normal HTTP failure — only for an unsafe target.
  */

@@ -597,7 +597,24 @@ export function outreachDraft({ ticker, verdict, reasons = [], seatUsd }) {
    * dans la fonction, pas dans la discipline de celui qui l'appelle. */
   if (verdict !== "clear" && verdict !== "flagged") return null;
 
-  const flag = verdict === "flagged" ? (reasons || [])[0] : null;
+  /* TOUS les drapeaux, pas le premier.
+   *
+   * Cette ligne prenait reasons[0] et la phrase d'ouverture disait « one
+   * flag » en dur. Sur $PISSTACIO — deux drapeaux, pool fin ET verrou de
+   * launchpad — le message annonçait un seul drapeau et n'en montrait
+   * qu'un. Le siège, lui, en aurait affiché deux.
+   *
+   * C'est exactement la faute que le commentaire au-dessus de cette
+   * fonction dit vouloir empêcher : « un siège qui arrive en portant une
+   * ligne dont on ne les avait pas prévenus est une conversation de
+   * remboursement ». On prévient de ce qui sera imprimé, en entier. */
+  const flags = verdict === "flagged" ? (reasons || []).filter(Boolean) : [];
+
+  /* Verdict « flagged » sans aucun motif : le système sait qu'il y a
+   * quelque chose et ne sait pas le dire. Écrire « it passed all of
+   * them » serait faux, écrire « avec des drapeaux » sans les nommer
+   * serait creux. On n'écrit rien — la règle habituelle de cette base. */
+  if (verdict === "flagged" && !flags.length) return null;
 
   /* "clear" and "flagged" are two different verdicts in this system, and
    * the opening line used to announce the first for both. Telling a
@@ -611,11 +628,11 @@ export function outreachDraft({ ticker, verdict, reasons = [], seatUsd }) {
    * le pire endroit pour une approximation. Aucune heure n'est promise :
    * la mesure est datée sur la page de refus, pas dans un DM. */
   const lines = [
-    flag
-      ? `We ran ${t} through our contract checks. It passed — with one flag, which we would print rather than hide.`
+    flags.length
+      ? `We ran ${t} through our contract checks. It passed — with ${flags.length === 1 ? "one flag" : `${flags.length} flags`}, which we would print rather than hide.`
       : `We ran ${t} through our contract checks. It passed all of them.`,
-    flag
-      ? `The flag, printed on the seat publicly for as long as it is up: ${flag}`
+    flags.length
+      ? `${flags.length === 1 ? "The flag" : "The flags"}, printed on the seat publicly for as long as it is up:\n${flags.map((f) => `· ${f}`).join("\n")}`
       : null,
     `The Wall is twenty-four advertising seats on one page, and nothing goes up without passing those checks first. ${price ? `A seat starts at ${price}.` : ""}`.trim(),
     `Every contract we turn away is published too, with the measurement. thewallsol.com/refused`,
@@ -706,8 +723,27 @@ export function aggregate(round, { at = null } = {}) {
 export const SEEN_HISTORY_MAX = 120;
 export function pushNight(history, row) {
   const prev = Array.isArray(history) ? history : [];
-  // Une seule ligne par nuit : relancer la ronde ne doit pas gonfler le total.
   const day = String(row?.at || "").slice(0, 10);
+  if (!day) return prev.slice(0, SEEN_HISTORY_MAX);
+
+  /* Une seule ligne par nuit : relancer la ronde ne doit pas gonfler le
+   * total. C'était juste, et la mise en œuvre était fausse — le dernier
+   * écrivain gagnait, quelle que soit sa maigreur.
+   *
+   * Ce qui s'est passé le 28 août : la ronde de nuit lit deux douzaines
+   * de contrats et les marque vus. Une seconde ronde le même jour ne
+   * trouve presque plus rien de neuf — un contrat n'est lu qu'une fois —
+   * et écrase la nuit entière avec « 1 contrat lu ». /seen, qui venait
+   * d'être indexé par Google, annonçait alors une ronde qui n'avait rien
+   * trouvé. Pas parce qu'il n'y avait rien : parce qu'on avait effacé.
+   *
+   * On garde donc la ligne la PLUS COMPLÈTE de la journée, pas la plus
+   * récente. Une relance qui lit davantage remplace ; une relance qui
+   * lit moins ne détruit rien. */
+  const same = prev.find((r) => String(r?.at || "").slice(0, 10) === day);
+  if (same && Number(same.checked || 0) >= Number(row?.checked || 0)) {
+    return prev.slice(0, SEEN_HISTORY_MAX);
+  }
   const kept = prev.filter((r) => String(r?.at || "").slice(0, 10) !== day);
   return [row, ...kept].slice(0, SEEN_HISTORY_MAX);
 }

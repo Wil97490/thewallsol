@@ -448,3 +448,17 @@ footer a{color:var(--faint)}
   .cmd{font-size:11.5px;padding:13px 14px}
   .checknav a,.checknav span{flex:1 1 44%;font-size:10.5px;padding:8px 6px}
 }
+
+/* ---- le droit de réponse, sur une page de refus ----
+   Encadré plein plutôt qu'un rail : ce bloc doit se lire comme une
+   adresse à laquelle écrire, pas comme la note qui ferme la section
+   précédente. C'est la voie de recours de quelqu'un qu'on vient de
+   nommer publiquement — elle a le corps de texte, pas celui d'un
+   pied de page. */
+.reply{max-width:70ch;margin-top:22px;border:1px solid var(--line);
+  border-left:3px solid var(--brass);background:var(--sunk);
+  padding:22px 24px;display:flex;flex-direction:column;gap:13px}
+.reply p{font-size:15.5px;line-height:1.62;color:var(--muted)}
+.reply p strong{color:var(--ink);font-weight:600}
+.reply a{color:var(--accent);word-break:break-word}
+@media (max-width:720px){.reply{padding:18px 16px}.reply p{font-size:15px}}

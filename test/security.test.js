@@ -1,7 +1,7 @@
 import { test, describe } from "node:test";
 import assert from "node:assert/strict";
 import "./_helpers.js";
-import { isPrivateAddress, vetUrl, UnsafeUrlError } from "../src/lib/net.js";
+import { isPrivateAddress, vetUrl, UnsafeUrlError, sameSite } from "../src/lib/net.js";
 import { secretEquals } from "../src/http.js";
 import { isSolanaAddress } from "../src/lib/base58.js";
 import { validateEntry } from "../src/server.js";
@@ -132,5 +132,35 @@ describe("wallet or program — the test that stops a liquidity pool being read 
       if (isOnCurve(crypto.randomBytes(32))) on++;
     }
     assert.ok(on > 60 && on < 140, `expected roughly half on the curve, got ${on}/200`);
+  });
+});
+
+describe("sameSite — la frontière entre leur plomberie et un vrai saut", () => {
+  const same = [
+    ["https://c4t.cat", "https://c4t.cat/"],
+    ["http://c4t.cat", "https://c4t.cat/"],
+    ["https://c4t.cat", "https://www.c4t.cat/"],
+    ["https://www.c4t.cat", "https://c4t.cat/"],
+    ["https://c4t.cat", "https://app.c4t.cat/x"],
+  ];
+  for (const [a, b] of same) {
+    test(`même maison : ${a} → ${b}`, () => assert.equal(sameSite(a, b), true));
+  }
+
+  const other = [
+    ["https://c4t.cat", "https://linktr.ee/c4t"],
+    // Le piège : un domaine qui SE TERMINE par le nom sans en être un
+    // sous-domaine. Une comparaison par suffixe naïve le laisse passer.
+    ["https://c4t.cat", "https://evil-c4t.cat/"],
+    ["https://c4t.cat", "https://c4t.cat.evil.com/"],
+  ];
+  for (const [a, b] of other) {
+    test(`ailleurs : ${a} → ${b}`, () => assert.equal(sameSite(a, b), false));
+  }
+
+  test("une URL illisible n'est jamais déclarée « même site »", () => {
+    assert.equal(sameSite("pas une url", "https://c4t.cat"), false);
+    assert.equal(sameSite("https://c4t.cat", ""), false);
+    assert.equal(sameSite(null, null), false);
   });
 });
