@@ -158,3 +158,9 @@ describe("le sitemap", () => {
     }
   });
 });
+
+test("holder-concentration enonce la limite par adresse", () => {
+  const hc = CHECK_BY_SLUG["holder-concentration"];
+  assert.ok(hc.what.some((p) => /does not see/.test(p) && /funded/.test(p)), "la page doit enoncer le plafond par portefeuille");
+  assert.ok(hc.verify.reading.some(([w]) => /each under the ceiling/.test(w)), "le tableau de lecture doit couvrir plusieurs portefeuilles");
+});

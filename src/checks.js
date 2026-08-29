@@ -166,6 +166,7 @@ ${rpcCall("getTokenLargestAccounts", `["LP_MINT"]`)} \\
       "<code>getTokenLargestAccounts</code> returns the twenty largest token accounts for a mint. Token accounts, not people: one wallet can hold several, and most of the largest ones on a healthy token are not wallets at all.",
       "So the raw list is close to useless. A pool vault holding sixty percent of supply is the pool working correctly; the same number in a person's wallet is the float sitting on a hair trigger. Reading the first as the second is the mistake that makes automated holder checks worthless, and it is the one we made on our first two real tokens.",
       "The fix is arithmetic rather than heuristic: resolve each account's owner, and drop every owner whose address is off the ed25519 curve. An off-curve address is program-derived — a vault, an escrow, a locker — and nobody holds its private key. Also dropped: the incinerator, and the known system holders.",
+      "And here is what this check does not see. The ceiling is tested against one wallet. A position split across fifteen wallets, each below the ceiling, holds the same share of the float and passes  the arithmetic is per address, and an address costs nothing to create. On 29 August 2026, the team behind a Solana token sold 224,500,000 tokens through fifteen freshly created wallets (reported by Lookonchain). We did not run our checks on that token, and this is not a claim about what we would have found: it is a description of a hole in the rule above. Closing it means clustering addresses by how they were funded, which is a different measurement, and not one we run today.",
     ],
     verify: {
       intro: "Two calls: the largest accounts, then who owns them.",
@@ -179,6 +180,7 @@ ${rpcCall("getMultipleAccounts", `[["ACCOUNT_1","ACCOUNT_2"],{"encoding":"jsonPa
       reading: [
         ["An owner that is a pool vault or locker", "Exclude it. It is not a holder, and counting it invents a whale that does not exist."],
         ["A plain wallet holding a large share of supply", "This is the number the rule tests, against the ceiling published on the rules page."],
+        ["Several plain wallets, each under the ceiling", "The rule reads them one at a time and finds nothing. Whether they are one holder is a question about how they were funded, which this check does not ask."],
         ["\"too many accounts\" from the RPC", "The method refuses past a certain size. That is a limit of the call, not concentration — see below."],
       ],
       note: "Whether an address is on the ed25519 curve is not something the RPC will tell you; it is a property of the bytes. Any Solana SDK exposes it as <code>PublicKey.isOnCurve</code>.",
