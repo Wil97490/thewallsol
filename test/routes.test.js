@@ -137,6 +137,33 @@ describe("every public page answers", () => {
     assert.match(html, /28 November 2026/, "la date de déblocage n'est pas dite");
     assert.match(html, /neither be canceled nor transferred/,
       "la page ne cite plus la garantie de non-annulabilité");
+
+    /* SPEC-001 — 9.39% était le chiffre pré-frais ; 9.35% est le chiffre
+     * effectivement verrouillé. L'explication canonique de l'écart vit
+     * uniquement ici (rules.html:196-198) ; les deux phrases qui la
+     * portent doivent survivre mot pour mot à toute correction ailleurs
+     * sur le site. */
+    assert.ok(
+      html.includes(
+        "<strong>93,478,448 $Wall — 9.35% of the supply — locked until 28 November 2026.</strong> The team wallet holds no unlocked $Wall at all. Not some of it: none."
+      ),
+      "le paragraphe canonique du montant verrouillé (93,478,448 / 9.35%) a été modifié ou supprimé"
+    );
+    assert.ok(
+      html.includes(
+        "The remaining 0.5% of the team's holding went to Streamflow as its service fee, which is why the locked figure is 9.35% and not 9.39%."
+      ),
+      "l'explication canonique de l'écart 9.35% / 9.39% (frais Streamflow) a été modifiée ou supprimée"
+    );
+
+    /* La formulation qui présentait 9.39% comme le chiffre VERROUILLÉ ne
+     * doit plus exister nulle part sur la page — 9.39% ne désigne que la
+     * détention avant frais, jamais ce qui est verrouillé. */
+    assert.doesNotMatch(
+      html,
+      /holds 9\.39% of the supply — all of it now locked/,
+      "la page lie encore 9.39% au montant verrouillé, au lieu de réserver ce chiffre à la détention avant frais"
+    );
   });
 
   test("l'accueil ne dit pas moins que ce qui est vrai du token", async () => {
@@ -144,9 +171,14 @@ describe("every public page answers", () => {
      * et incomplet depuis que la part est verrouillée — or c'est la
      * seule phrase sur le token que lit un visiteur qui n'ira jamais
      * jusqu'à /rules. Une divulgation partielle sur la page la plus vue
-     * ne vaut pas mieux qu'une divulgation enterrée. */
+     * ne vaut pas mieux qu'une divulgation enterrée.
+     *
+     * SPEC-001 : la part effectivement verrouillée est 9.35%, pas 9.39%
+     * (9.39% est la détention avant les frais Streamflow — voir /rules).
+     * L'accueil ne doit plus jamais présenter 9.39% comme le chiffre
+     * verrouillé. */
     const html = await fetch(`http://127.0.0.1:${PORT}/`).then((r) => r.text());
-    assert.match(html, /9\.39%/, "l'accueil ne chiffre plus la part de l'équipe");
+    assert.match(html, /9\.35%/, "l'accueil ne chiffre plus la part verrouillée de l'équipe");
     assert.match(html, /locked until 28 November 2026/, "l'accueil ne mentionne pas le verrou");
   });
 
