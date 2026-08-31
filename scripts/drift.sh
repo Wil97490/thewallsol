@@ -60,11 +60,21 @@ PY
 [ $? -eq 2 ] && DRIFT=1 || true
 
 echo "· dead configuration"
+# SPEC-002 removed TAKEOVER_MULTIPLIER: it named a takeover rule the code
+# never applied. The real one is max(+10%, +$5), never below the floor, from
+# MIN_INCREMENT_PCT / MIN_INCREMENT_USD. Absence is now the correct state, so
+# a reappearance is drift wherever it happens — including in src/, which the
+# earlier version of this check reported as "read by src/", an ok.
+#
+# In src/ any mention counts: the reintroduction that matters is a READ, and
+# a read carries no "=". Outside src/ only an assignment counts, because the
+# test that forbids the variable has to spell its name to forbid it.
 for v in TAKEOVER_MULTIPLIER; do
-  in_src=$({ grep -rlE "$v" src/ 2>/dev/null || true; } | wc -l | tr -d ' ')
-  in_other=$({ grep -rlE "$v" test/ deploy.env 2>/dev/null || true; } | wc -l | tr -d ' ')
-  if [ "$in_src" -gt 0 ]; then ok "$(printf '%-22s read by src/' "$v")"
-  elif [ "$in_other" -gt 0 ]; then bad "$(printf '%-22s set outside src/ but read nowhere in src/' "$v")"
+  back=$({ grep -rlE "$v" src/ 2>/dev/null || true
+           grep -rlE "$v[[:space:]]*=" test/ deploy.env .env.example 2>/dev/null || true; })
+  if [ -n "$back" ]; then
+    bad "$(printf '%-22s is back — removed by SPEC-002' "$v")"
+    printf '%s\n' "$back" | sed 's/^/         /'
   else ok "$(printf '%-22s absent everywhere' "$v")"; fi
 done
 

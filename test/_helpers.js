@@ -23,7 +23,6 @@ export const FIELDS = {
 // Vos reglages de production ne doivent jamais decider de ce que teste
 // le gate de release.
 process.env.SEAT_FLOOR_USD = "50";
-process.env.TAKEOVER_MULTIPLIER = "1.15";
 process.env.SEAT_HOLD_MINUTES = "20";
 process.env.SEAT_PROTECT_MINUTES = "60";
 process.env.MIN_INCREMENT_PCT = "0.10";

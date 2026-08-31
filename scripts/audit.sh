@@ -66,11 +66,18 @@ for p in node_modules/ data/ .scout.env .env; do
 done
 
 echo "· drift signals"
-if grep -rqE 'TAKEOVER_MULTIPLIER' src/ 2>/dev/null; then ok "TAKEOVER_MULTIPLIER has a consumer in src/"
-else
-  if grep -rqE 'TAKEOVER_MULTIPLIER' test/ 2>/dev/null; then
-    printf '  --   TAKEOVER_MULTIPLIER set in test/ but read nowhere in src/\n'
-  fi
-fi
+# TAKEOVER_MULTIPLIER was removed under SPEC-002: it named a takeover rule
+# the code never applied (the real one is max(+10%, +$5), from
+# MIN_INCREMENT_PCT / MIN_INCREMENT_USD). Absence is the correct state, and a
+# reappearance is a signal wherever it happens. In src/ any mention counts —
+# a READ is the reintroduction that matters, and it carries no "=". Outside
+# src/ only an assignment counts: the test that forbids the variable has to
+# spell its name, and that is not a comeback.
+back=$({ grep -rlE 'TAKEOVER_MULTIPLIER' src/ 2>/dev/null || true
+         grep -rlE 'TAKEOVER_MULTIPLIER[[:space:]]*=' test/ .env.example deploy.env 2>/dev/null || true; })
+if [ -n "$back" ]; then
+  printf '  --   TAKEOVER_MULTIPLIER is back — removed by SPEC-002, see:\n'
+  printf '%s\n' "$back" | sed 's/^/         /'
+else ok "$(printf '%-22s absent (removed, SPEC-002)' 'TAKEOVER_MULTIPLIER')"; fi
 n=$(grep -rlE 'TODO|FIXME|XXX' src/ test/ scripts/ 2>/dev/null | wc -l | tr -d ' ')
 val "files with TODO/FIXME/XXX" "$n"

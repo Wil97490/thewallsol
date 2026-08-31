@@ -8,8 +8,10 @@ import { listSeats, getSeat, saveSeat } from "./storage.js";
  * The only rules that matter here:
  *   - a seat can be held by exactly one order at a time
  *   - a hold expires on its own, so an abandoned checkout frees the seat
- *   - a takeover must beat the current price by the multiplier, and the
- *     price is fixed when the order is created, not when it is paid
+ *   - a takeover must beat the current price by the minimum increment —
+ *     ten percent or five dollars, whichever is larger, and never below
+ *     the floor — and the price is fixed when the order is created, not
+ *     when it is paid
  * ------------------------------------------------------------------ */
 
 /**

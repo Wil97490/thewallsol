@@ -23,7 +23,7 @@
 
 import { test, describe, beforeEach } from "node:test";
 import assert from "node:assert/strict";
-import { readFileSync } from "node:fs";
+import { readFileSync, readdirSync } from "node:fs";
 import "./_helpers.js";
 import { _resetMemory, getSeat } from "../src/storage.js";
 import * as wall from "../src/wall.js";
@@ -136,6 +136,55 @@ describe("invariants V4.54 — garanties de forme", () => {
       Object.keys(seat.history[0]).sort(),
       ["from", "priceUsd", "ticker", "to"],
       "l'entrée d'historique a gagné un champ — vérifier qu'il ne s'agit pas d'un reversement"
+    );
+  });
+});
+
+/* SPEC-002 : TAKEOVER_MULTIPLIER nommait une règle de reprise que le code
+ * n'a jamais appliquée. La vraie règle est max(+10 %, +5 $), jamais sous le
+ * plancher, et elle se lit dans MIN_INCREMENT_PCT / MIN_INCREMENT_USD.
+ * Une variable que rien ne lit ne se contente pas d'être inutile : elle
+ * donne à relire un réglage qui ne règle rien. Elle est supprimée, et ce
+ * test empêche qu'elle revienne.
+ *
+ * Lecture en TEXTE, jamais via `config` : _helpers.js remplace
+ * délibérément les réglages économiques dans la suite (CLAUDE.md §10), donc
+ * un accès à l'exécution ne prouverait rien sur ce que contient le dépôt. */
+describe("invariants V4.54 — configuration morte", () => {
+  /* La surface de configuration : les fichiers où la variable était posée. */
+  const CONFIG_SURFACE = [".env.example", "deploy.env", "test/_helpers.js"];
+
+  for (const f of CONFIG_SURFACE) {
+    test(`TAKEOVER_MULTIPLIER est absent de ${f}`, () => {
+      assert.ok(
+        !readFileSync(f, "utf8").includes("TAKEOVER_MULTIPLIER"),
+        `${f} référence TAKEOVER_MULTIPLIER — supprimé par SPEC-002, ` +
+        "la règle de reprise est MIN_INCREMENT_PCT / MIN_INCREMENT_USD"
+      );
+    });
+  }
+
+  /* Et tout src/, récursivement. Nommer deux fichiers ne suffisait pas :
+   * la réintroduction qui compte n'est pas une affectation dans un .env,
+   * c'est une LECTURE dans le code — `num(process.env.TAKEOVER_MULTIPLIER,
+   * 1.15)` quelque part dans src/ ressusciterait le réglage sans que
+   * personne l'écrive dans un fichier de configuration. La première version
+   * de ce test ne couvrait que src/config.js et src/wall.js, soit 2 des 25
+   * fichiers de src/ : elle laissait passer les 23 autres. */
+  const filesUnder = (dir) =>
+    readdirSync(dir, { withFileTypes: true }).flatMap((e) =>
+      e.isDirectory() ? filesUnder(`${dir}/${e.name}`) : [`${dir}/${e.name}`]
+    );
+
+  test("aucun fichier de src/ ne référence TAKEOVER_MULTIPLIER", () => {
+    const offenders = filesUnder("src").filter((f) =>
+      readFileSync(f, "utf8").includes("TAKEOVER_MULTIPLIER")
+    );
+    assert.deepEqual(
+      offenders, [],
+      `TAKEOVER_MULTIPLIER est revenu dans src/ (${offenders.join(", ")}) — ` +
+      "supprimé par SPEC-002, la règle de reprise est " +
+      "MIN_INCREMENT_PCT / MIN_INCREMENT_USD"
     );
   });
 });
