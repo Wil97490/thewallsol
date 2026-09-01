@@ -57,5 +57,5 @@
 }
 
 @media (prefers-reduced-motion:reduce){
-  #wall .seat,#wall .seat[aria-pressed="true"]{transform:none}
+  #wall .seat,#wall .seat:hover,#wall .seat[aria-pressed="true"]{transform:none}
 }
