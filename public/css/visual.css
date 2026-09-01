@@ -1,5 +1,8 @@
 /* THE WALL — visual layer. Functional behaviour remains in app.css. */
 :root{--accent2:#8B5CF6;--accent2-ink:#F3ECFF;--glass:rgba(10,9,8,.76);--glass-line:rgba(239,233,220,.12)}
+@media (prefers-color-scheme: light){
+  :root:not([data-theme="dark"]){--accent2:#6D28D9;--accent2-ink:#3B176E;--glass:rgba(247,245,240,.84);--glass-line:rgba(25,23,18,.12)}
+}
 :root[data-theme="light"]{--accent2:#6D28D9;--accent2-ink:#3B176E;--glass:rgba(247,245,240,.84);--glass-line:rgba(25,23,18,.12)}
 
 .hero-shell{position:relative;overflow:hidden;border-bottom:1px solid var(--line);background:radial-gradient(circle at 77% 42%,color-mix(in srgb,var(--accent2) 12%,transparent),transparent 32%),var(--ground)}
