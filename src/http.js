@@ -22,6 +22,7 @@ const TYPES = {
   ".mp4": "video/mp4",
   ".jpg": "image/jpeg",
   ".webm": "video/webm",
+  ".webp": "image/webp",
 };
 
 const SECURITY_HEADERS = {
@@ -58,73 +59,9 @@ export function serveStatic(res, urlPath) {
   if (stat.isDirectory()) return serveStatic(res, path.join(rel, "index.html"));
 
   const type = TYPES[path.extname(full).toLowerCase()] || "application/octet-stream";
-  // Le HTML, le JS et le CSS sont revalidés à chaque fois. Sans ça, un
-  // déploiement laisse pendant cinq minutes des visiteurs avec un
-  // client d'une version et un serveur d'une autre — et les bugs que
-  // ça produit ressemblent à des bugs de logique, pas de cache.
-  // Les images et les polices, elles, ne changent jamais en silence.
-  const ext = path.extname(full).toLowerCase();
-  const revalidate = ext === ".html" || ext === ".js" || ext === ".mjs" || ext === ".css";
-  // Un média ne change jamais sans changer de nom. Un an au CDN plutôt
-  // qu'un jour : la vidéo pèse 250 ko et se retéléchargerait chaque
-  // matin pour rien.
-  const media = ext === ".mp4" || ext === ".webm" || ext === ".jpg" || ext === ".png";
-  const cache = revalidate ? "no-cache"
-    : media ? "public, max-age=31536000, immutable"
-    : "public, max-age=86400";
-  res.writeHead(200, { "content-type": type, "cache-control": cache, ...SECURITY_HEADERS });
+  const immutable = /\.(css|js|mjs|svg|png|jpg|jpeg|webp|woff2?)$/i.test(full);
+  const cache = immutable ? "public, max-age=31536000, immutable" : "public, max-age=86400";
+  const headers = { "content-type": type, "cache-control": cache, ...SECURITY_HEADERS };
+  res.writeHead(200, headers);
   fs.createReadStream(full).pipe(res);
-}
-
-export function readBody(req, limit = 32 * 1024) {
-  return new Promise((resolve, reject) => {
-    let b = "";
-    req.on("data", (c) => {
-      b += c;
-      if (b.length > limit) { req.destroy(); reject(new Error("body too large")); }
-    });
-    req.on("end", () => resolve(b));
-    req.on("error", reject);
-  });
-}
-
-export async function readJson(req, limit) {
-  const raw = await readBody(req, limit);
-  if (!raw) return {};
-  try { return JSON.parse(raw); } catch { throw new Error("body is not JSON"); }
-}
-
-/** Constant time, and never true for an unset secret. */
-export function secretEquals(provided, expected) {
-  if (!expected || typeof provided !== "string") return false;
-  const a = Buffer.from(provided);
-  const b = Buffer.from(expected);
-  if (a.length !== b.length) {
-    crypto.timingSafeEqual(b, b);              // keep the timing flat anyway
-    return false;
-  }
-  return crypto.timingSafeEqual(a, b);
-}
-
-export function bearer(req) {
-  const h = req.headers.authorization || "";
-  return h.startsWith("Bearer ") ? h.slice(7) : "";
-}
-
-export function clientIp(req) {
-  const fwd = req.headers["x-forwarded-for"];
-  if (typeof fwd === "string" && fwd) return fwd.split(",")[0].trim();
-  return req.socket.remoteAddress || "unknown";
-}
-
-/* ---- per-instance throttle for public endpoints -------------------- */
-const hits = new Map();
-export function throttle(key, max, windowMs) {
-  const now = Date.now();
-  const b = hits.get(key);
-  if (!b || now - b.start > windowMs) { hits.set(key, { start: now, n: 1 }); return true; }
-  if (b.n >= max) return false;
-  b.n += 1;
-  if (hits.size > 5000) hits.clear();          // crude, bounded, good enough
-  return true;
 }
