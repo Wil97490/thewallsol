@@ -22,6 +22,7 @@ const TYPES = {
   ".mp4": "video/mp4",
   ".jpg": "image/jpeg",
   ".webm": "video/webm",
+  ".webp": "image/webp",
 };
 
 const SECURITY_HEADERS = {
@@ -68,7 +69,7 @@ export function serveStatic(res, urlPath) {
   // Un média ne change jamais sans changer de nom. Un an au CDN plutôt
   // qu'un jour : la vidéo pèse 250 ko et se retéléchargerait chaque
   // matin pour rien.
-  const media = ext === ".mp4" || ext === ".webm" || ext === ".jpg" || ext === ".png";
+  const media = ext === ".mp4" || ext === ".webm" || ext === ".jpg" || ext === ".png" || ext === ".webp";
   const cache = revalidate ? "no-cache"
     : media ? "public, max-age=31536000, immutable"
     : "public, max-age=86400";
