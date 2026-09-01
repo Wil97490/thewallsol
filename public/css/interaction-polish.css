@@ -1,0 +1,14 @@
+/* THE WALL — interaction polish. Visual only. */
+.hero-action,.banner,#wall .seat,#wall .panel .btn{-webkit-tap-highlight-color:transparent;transform:translateZ(0)}
+.hero-action,.banner,#wall .seat,#wall .panel .btn{transition:transform .18s ease,box-shadow .18s ease,border-color .18s ease,background .18s ease}
+.hero-action:active,.banner:active,#wall .seat:active,#wall .panel .btn:active:not(:disabled){transform:translateY(0);box-shadow:none}
+.hero-action:focus-visible,.banner:focus-visible,#wall .seat:focus-visible,#wall .panel .btn:focus-visible{position:relative;z-index:4;box-shadow:0 0 0 2px var(--accent2),0 0 0 5px color-mix(in srgb,var(--accent2) 16%,transparent)}
+.hero-action-primary:focus-visible{box-shadow:0 0 0 2px var(--accent),0 0 0 5px color-mix(in srgb,var(--accent) 18%,transparent)}
+.banner:hover{background:var(--raise);transform:translateY(-1px)}
+#wall .seat.open{border-color:color-mix(in srgb,var(--brass) 22%,var(--line))}
+#wall .seat.open:hover{border-color:color-mix(in srgb,var(--brass) 46%,var(--line))}
+#wall .seat:hover{box-shadow:0 12px 28px rgba(0,0,0,.10)}
+#wall .seat[aria-pressed="true"]{transform:translateY(-1px)}
+#wall .panel .btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 12%,transparent)}
+@media (max-width:560px){#wall .seat:hover{transform:none;box-shadow:0 9px 22px rgba(0,0,0,.07)}.banner:hover{transform:none}}
+@media (prefers-reduced-motion:reduce){.hero-action,.banner,#wall .seat,#wall .panel .btn{transition:none}.hero-action:active,.banner:active,#wall .seat:active,#wall .panel .btn:active:not(:disabled),#wall .seat[aria-pressed="true"],#wall .seat:hover,.banner:hover,#wall .panel .btn:hover:not(:disabled){transform:none;box-shadow:none}.hero-action:hover{transform:none}}
