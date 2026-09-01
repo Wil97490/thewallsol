@@ -1,0 +1,38 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 720 860" role="img" aria-label="Abstract monolith with a violet light fissure">
+  <defs>
+    <linearGradient id="stone" x1="0" y1="0" x2="1" y2="1">
+      <stop offset="0" stop-color="#312b23"/><stop offset=".48" stop-color="#17140f"/><stop offset="1" stop-color="#080705"/>
+    </linearGradient>
+    <linearGradient id="edge" x1="0" y1="0" x2="1" y2="0">
+      <stop stop-color="#6f6250" stop-opacity=".18"/><stop offset=".5" stop-color="#fff" stop-opacity=".03"/><stop offset="1" stop-color="#000" stop-opacity=".45"/>
+    </linearGradient>
+    <linearGradient id="violet" x1="0" y1="0" x2="0" y2="1">
+      <stop stop-color="#b99aff" stop-opacity=".1"/><stop offset=".5" stop-color="#8f54ff"/><stop offset="1" stop-color="#d4bdff" stop-opacity=".95"/>
+    </linearGradient>
+    <radialGradient id="ring" cx="50%" cy="50%" r="50%">
+      <stop stop-color="#9b6cff" stop-opacity=".2"/><stop offset=".45" stop-color="#7c45e8" stop-opacity=".08"/><stop offset="1" stop-color="#7c45e8" stop-opacity="0"/>
+    </radialGradient>
+    <filter id="glow"><feGaussianBlur stdDeviation="10"/></filter>
+  </defs>
+  <ellipse cx="360" cy="790" rx="250" ry="52" fill="url(#ring)"/>
+  <g>
+    <path d="M210 760 245 116 328 55 475 83 528 165 548 760 457 804 286 801Z" fill="url(#stone)" stroke="#4b4031" stroke-width="2"/>
+    <path d="m245 116 83-61 147 28 53 82-20 595-91 44-171-3Z" fill="url(#edge)"/>
+    <path d="M328 55 340 761" stroke="#71614b" stroke-opacity=".22" stroke-width="4"/>
+    <path d="M245 116 286 801M475 83 457 804M528 165 548 760" stroke="#8c7a5c" stroke-opacity=".13" stroke-width="3"/>
+    <path d="m282 185 35 26-20 67 43 54-32 76 41 83-38 92 42 82-39 80" fill="none" stroke="#9a8870" stroke-opacity=".17" stroke-width="3"/>
+    <path d="m438 142-39 70 27 61-38 75 41 70-33 89 37 82-29 86" fill="none" stroke="#9a8870" stroke-opacity=".14" stroke-width="4"/>
+    <path d="M365 66 365 764" stroke="#8d5cff" stroke-opacity=".22" stroke-width="22" filter="url(#glow)"/>
+    <path d="M365 63 365 766" stroke="url(#violet)" stroke-width="5"/>
+    <path d="M365 63 365 766" stroke="#f0e9ff" stroke-opacity=".82" stroke-width="1.5"/>
+    <path d="m363 235-38 51 27 42-45 74 51 56-35 73 43 63-38 77" fill="none" stroke="#8f54ff" stroke-opacity=".7" stroke-width="4"/>
+    <path d="m367 310 42 48-32 59 39 72-48 58 34 72-43 71" fill="none" stroke="#a977ff" stroke-opacity=".55" stroke-width="3"/>
+  </g>
+  <g opacity=".8" fill="none" stroke="#9b6cff">
+    <ellipse cx="365" cy="774" rx="118" ry="19" stroke-width="2"/>
+    <ellipse cx="365" cy="774" rx="172" ry="30" stroke-opacity=".55"/>
+    <ellipse cx="365" cy="774" rx="222" ry="41" stroke-opacity=".32"/>
+  </g>
+  <circle cx="365" cy="766" r="8" fill="#f4edff"/>
+  <circle cx="365" cy="766" r="28" fill="#9b6cff" fill-opacity=".16" filter="url(#glow)"/>
+</svg>
