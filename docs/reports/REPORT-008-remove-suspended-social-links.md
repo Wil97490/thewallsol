@@ -78,6 +78,22 @@ real, and forbids a dead one from reappearing.
 
 ## 9. Gaps
 
+**Addendum (2026-09-01, same branch, commit `35c80a9`):** the gap below
+is closed. With explicit operator sign-off, `scripts/preflight.sh:177-190`
+was rewritten to check for the *absence* of `t.me/ThewallSol`,
+`t.me/TheWallSol`, `@ThewallSol`, `@TheWallSol`, `x.com/xTheWallx0`, and
+`@xTheWallx0` across `/`, `/terms`, `/rules`, `/refused`, `/seen`,
+`/checks` — case-sensitive on a capital "S" in "Sol" so it can never
+match `contact@thewallsol.com`, verified directly (positive and negative
+controls) before wiring it into the script. Re-verified end-to-end by
+running the actual `scripts/preflight.sh` (unmodified apart from this
+one block) against a local instance serving this branch's content: all
+six routes report `ok ... aucun canal social suspendu`. No new social
+identity was introduced. The paragraph originally below described the
+gap as it stood before this addendum.
+
+---
+
 **`scripts/preflight.sh:180` still probes for the literal string
 `t.me/ThewallSol` on every public route.** It was not in the authorized
 change list for this pass, and it is the project's own release gate —
