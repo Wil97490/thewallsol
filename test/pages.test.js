@@ -374,25 +374,30 @@ describe("le droit de réponse a le rang d'une section, pas d'une note", () => {
   });
 });
 
-describe("le second canal de contact est joignable depuis les pages servies", () => {
-  /* Une adresse email seule est un canal, pas deux. Le compte Telegram
-   * existe désormais ; s'il n'est nulle part sur le site, il ne sert à
-   * rien — et le droit de réponse d'un projet nommé publiquement ne
-   * doit pas dépendre d'un seul chemin. */
+describe("le canal de contact est joignable depuis les pages servies", () => {
+  /* Le Telegram (@ThewallSol) et le compte X (@xTheWallx0) — l'ancien
+   * second canal du droit de réponse — ont tous les deux été suspendus
+   * (2026-09-01). Le droit de réponse d'un projet nommé publiquement ne
+   * doit jamais dépendre d'un chemin mort : en attendant qu'un nouveau
+   * canal officiel soit choisi, l'email reste le seul chemin promis, et
+   * ces tests vérifient qu'aucune page ne propose plus le Telegram ou le
+   * X suspendus à sa place. */
   const row = {
     ticker: "TEST", slug: "test", at: new Date().toISOString(),
     reasons: ["Mint authority is still open — the supply can be inflated at any time."],
     ruleIds: ["mint_authority"], source: "probe",
   };
 
-  test("le pied de page mène au Telegram", () => {
-    assert.match(refusalPage(row), /t\.me\/ThewallSol/);
-    assert.match(seenPage({ last: null, history: [] }), /t\.me\/ThewallSol/);
+  test("le pied de page mène au contact, jamais à un canal suspendu", () => {
+    assert.match(refusalPage(row), /mailto:contact@thewallsol\.com/);
+    assert.match(seenPage({ last: null, history: [] }), /mailto:contact@thewallsol\.com/);
+    assert.doesNotMatch(refusalPage(row), /t\.me\/|x\.com\//, "un canal suspendu traîne encore dans le pied de page");
+    assert.doesNotMatch(seenPage({ last: null, history: [] }), /t\.me\/|x\.com\//, "un canal suspendu traîne encore dans le pied de page");
   });
 
-  test("le droit de réponse offre les deux portes", () => {
+  test("le droit de réponse offre un canal vérifiable, jamais un canal mort", () => {
     const bloc = refusalPage(row).match(/class="reply"[\s\S]*?<\/div>/)[0];
     assert.match(bloc, /mailto:contact@thewallsol\.com/, "l'email a disparu du recours");
-    assert.match(bloc, /t\.me\/ThewallSol/, "le Telegram n'est pas dans le recours");
+    assert.doesNotMatch(bloc, /t\.me\/|x\.com\//, "un canal suspendu est encore proposé dans le recours");
   });
 });

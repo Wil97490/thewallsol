@@ -174,10 +174,22 @@ for path in "/" "/terms" "/rules" "/refused" "/checks" "/checks/pool-depth"; do
   fi
 done
 has "$URL/terms" "Refunds" "terms and refunds are published"
-# Deux canaux de contact, pas un. Un droit de réponse qui dépend d'un
-# seul chemin est un droit de réponse qui tombe avec ce chemin.
-for path in "/" "/terms" "/rules" "/refused"; do
-  has "$URL$path" "t.me/ThewallSol" "$(printf '%-24s mène au Telegram' "$path")"
+# Le Telegram (@ThewallSol / @TheWallSol) et le compte X (@xTheWallx0)
+# ont tous les deux été suspendus (2026-09-01) et retirés de toute page
+# publique. Ce contrôle vérifiait autrefois leur présence ; il vérifie
+# désormais leur absence — un canal mort qui traîne encore sur une page
+# publiée est pire qu'aucun canal, parce qu'il a l'air de fonctionner.
+# La casse est volontairement large (ThewallSol ET TheWallSol) : les
+# deux ont existé sur le site selon la page, et l'email de contact
+# (contact@thewallsol.com, "sol" en minuscules) ne peut jamais matcher
+# — le motif exige un "S" majuscule dans "Sol".
+for path in "/" "/terms" "/rules" "/refused" "/seen" "/checks"; do
+  if curl -sf "$URL$path" -o /tmp/pf_social.html 2>/dev/null \
+     && grep -qE 't\.me/[Tt]he[Ww]allSol|@[Tt]he[Ww]allSol|x\.com/xTheWallx0|@xTheWallx0' /tmp/pf_social.html; then
+    fail "$(printf '%-24s cite encore un canal social suspendu' "$path")"
+  else
+    pass "$(printf '%-24s aucun canal social suspendu' "$path")"
+  fi
 done
 
 # Un champ à trous affiché sur une page publique. /terms a servi

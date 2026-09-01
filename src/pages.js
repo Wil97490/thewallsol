@@ -97,7 +97,7 @@ ${jsonLd ? `<script type="application/ld+json">${JSON.stringify(jsonLd)}</script
 <main>
 ${body}
 </main>
-<footer class="wrap"><a href="/">Back to the wall</a> · <a href="/seen">Last night</a> · <a href="/refused">The ledger</a> · <a href="/rules">The rules</a> · <a href="/checks">Run the checks yourself</a> · <a href="/terms">Terms</a> · <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a> · <a href="https://t.me/ThewallSol" rel="me noopener">Telegram</a></footer>
+<footer class="wrap"><a href="/">Back to the wall</a> · <a href="/seen">Last night</a> · <a href="/refused">The ledger</a> · <a href="/rules">The rules</a> · <a href="/checks">Run the checks yourself</a> · <a href="/terms">Terms</a> · <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a></footer>
 </body>
 </html>`;
 }
@@ -207,7 +207,7 @@ export function refusalPage(row) {
         <h2>If we got this wrong</h2>
       </div>
       <div class="reply">
-        <p>Write to <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a> with the mint address and the line you are disputing, or message <a href="https://t.me/ThewallSol" rel="me noopener">@ThewallSol on Telegram</a>.</p>
+        <p>Write to <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a> with the mint address and the line you are disputing.</p>
         <p><strong>A measurement we got wrong comes down, and the correction is public.</strong> The page does not quietly disappear — it stays at this address and says it was withdrawn. A ledger you can erase is not a ledger.</p>
       </div>
     </div>
