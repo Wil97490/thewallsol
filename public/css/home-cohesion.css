@@ -1,0 +1,61 @@
+/* THE WALL — home composition pass. Visual only; app behaviour stays in app.css. */
+
+.hero-shell{background:radial-gradient(circle at 78% 42%,color-mix(in srgb,var(--accent2) 14%,transparent),transparent 34%),var(--ground)}
+.hero-shell .hero{padding-top:clamp(62px,8vw,104px);padding-bottom:clamp(58px,7vw,92px)}
+.hero-copy{align-self:center}
+.hero-kicker{margin-bottom:20px}
+.hero-shell .hero h1{max-width:12ch;font-size:clamp(46px,6.3vw,88px);line-height:.93}
+.hero-shell .hero .sub{max-width:56ch;font-size:16.5px;line-height:1.72}
+.hero-actions{margin-top:28px}
+.hero-proof{margin-top:14px}
+.hero-art{align-self:stretch;display:flex;align-items:center}
+.hero-art-frame{width:100%;aspect-ratio:4/5;max-height:760px;box-shadow:0 28px 90px rgba(0,0,0,.32),0 0 0 1px color-mix(in srgb,var(--accent2) 8%,transparent)}
+.hero-art-caption{letter-spacing:.2em}
+
+#film{background:linear-gradient(180deg,color-mix(in srgb,var(--surface) 68%,transparent),transparent 42%),var(--ground);padding-top:clamp(52px,6vw,76px);padding-bottom:clamp(54px,7vw,84px)}
+#film .wrap{display:grid;grid-template-columns:minmax(240px,.54fr) minmax(0,1.46fr);gap:clamp(28px,5vw,72px);align-items:end}
+#film .sec-head{max-width:38ch;padding-bottom:6px}
+#film .sec-head h2{font-size:clamp(28px,4vw,42px);line-height:1.02}
+#film .sec-head .note{font-size:14px;line-height:1.7}
+#film .film{margin:0;max-width:none}
+#film .film video{box-shadow:0 20px 56px rgba(0,0,0,.14)}
+#film .film figcaption{margin-top:10px}
+
+#wall{padding-top:clamp(56px,7vw,88px);padding-bottom:clamp(58px,8vw,96px);background:radial-gradient(ellipse at 50% 0%,color-mix(in srgb,var(--accent2) 5%,transparent),transparent 28%),var(--ground)}
+#wall .sec-head{max-width:760px}
+#wall .sec-head h2{font-size:clamp(30px,4vw,48px);line-height:.98}
+#wall .sec-head .note{font-size:15px;line-height:1.7;max-width:62ch}
+#wall .banners{margin-top:30px;margin-bottom:34px}
+#wall .wall-layout{gap:30px}
+#wall .grid{align-content:start}
+#wall .seat{min-height:128px;padding:14px;transition:transform .18s ease,box-shadow .18s ease,background .18s ease}
+#wall .seat:hover{transform:translateY(-2px)}
+#wall .seat[aria-pressed="true"]{transform:translateY(-1px)}
+#wall .panel{box-shadow:0 18px 50px rgba(0,0,0,.12)}
+
+.hero-shell .stats{margin-top:24px}
+.hero-shell .stat dd{font-weight:500}
+
+@media (max-width:960px){
+  #film .wrap{grid-template-columns:1fr;gap:24px}
+  #film .sec-head{max-width:70ch}
+  #film .film{margin-top:2px}
+  #wall .wall-layout{gap:24px}
+}
+
+@media (max-width:560px){
+  .hero-shell .hero{padding-top:38px;padding-bottom:42px}
+  .hero-shell .hero h1{font-size:clamp(39px,11vw,56px);max-width:10.4ch}
+  .hero-shell .hero .sub{font-size:15px}
+  .hero-art-frame{box-shadow:0 18px 48px rgba(0,0,0,.24)}
+  #film{padding-top:44px;padding-bottom:50px}
+  #film .sec-head h2{font-size:32px}
+  #wall{padding-top:48px;padding-bottom:58px}
+  #wall .sec-head h2{font-size:34px}
+  #wall .banners{margin-top:24px;margin-bottom:26px}
+  #wall .seat:hover{transform:none}
+}
+
+@media (prefers-reduced-motion:reduce){
+  #wall .seat,#wall .seat:hover,#wall .seat[aria-pressed="true"]{transform:none}
+}
