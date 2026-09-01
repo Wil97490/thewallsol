@@ -30,9 +30,6 @@
 .banner:nth-child(1) .rank{font-size:44px;color:var(--brass)}
 .banner:nth-child(1) .tick{font-size:29px}.banner:nth-child(1) .cash b{font-size:25px}
 .banner:nth-child(n+2) .rank{font-size:30px}.banner:nth-child(n+2) .tick{font-size:22px}
-
-/* Two occupied seats: keep the same 2–1 podium order, but remove the
-   unused third track so the pair is visually balanced on desktop. */
 .banners:has(> .banner:nth-child(2):last-child){grid-template-columns:1fr 1.18fr}
 
 .grid{gap:10px;background:none;border:0}.seat{border:1px solid var(--line);border-radius:12px;background:var(--plate);box-shadow:0 8px 22px rgba(0,0,0,.06);min-height:122px;overflow:hidden}.seat::after{content:"";position:absolute;inset:0;pointer-events:none;background:linear-gradient(135deg,transparent 0 70%,color-mix(in srgb,var(--accent2) 7%,transparent));opacity:0;transition:opacity .18s}.seat:hover::after{opacity:1}.seat[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--accent),0 10px 24px rgba(0,0,0,.12)}
@@ -40,7 +37,28 @@
 .tablewrap,.ops,.seen,.checks,.refused,.reading,.thresh,.drafts{border-radius:14px;overflow:hidden;box-shadow:0 10px 30px rgba(0,0,0,.05)}.tablewrap th{background:var(--sunk)}.op,.draft,.ref{transition:background .18s ease,transform .18s ease}.op:hover,.draft:hover,.ref:hover{background:var(--raise)}.reply,.pledge{border-radius:0 12px 12px 0}.cmd{border-radius:10px}
 main section:not(.hero-shell){position:relative}main section:not(.hero-shell)::before{content:"";position:absolute;left:50%;top:0;width:min(1240px,calc(100% - 2 * var(--pad)));height:1px;background:var(--line-soft);transform:translateX(-50%)}
 
+/* ---- public evidence surfaces: grouped, readable, deliberately quieter than the Wall ---- */
+.seen,.checks,.refused,.reading,.thresh,.drafts,.tablewrap,.ops{box-shadow:0 18px 48px rgba(0,0,0,.07);border-color:color-mix(in srgb,var(--line) 88%,var(--brass) 12%)}
+.seen-row,.chk,.ref,.read-row,.thresh-row,.draft,.op{transition:background .18s ease,transform .18s ease,box-shadow .18s ease}
+.seen-row:hover,.chk:hover,.ref:hover,.read-row:hover,.thresh-row:hover,.draft:hover,.op:hover{background:var(--raise);box-shadow:inset 2px 0 0 var(--accent2)}
+.chk{position:relative}.chk-k{color:var(--brass)}.chk-v{letter-spacing:.08em}.chk:hover,.ref:hover{transform:translateY(-1px)}
+.ref{position:relative}.ref::before{content:"";position:absolute;left:0;top:0;bottom:0;width:2px;background:var(--bad);opacity:.85;pointer-events:none}
+.ref-why li{border-left-width:3px}
+.seen-bar{border-radius:999px}.seen-bar i{box-shadow:0 0 12px color-mix(in srgb,var(--brass) 30%,transparent)}
+.screenbar{padding:14px;border:1px solid var(--line);border-radius:14px;background:color-mix(in srgb,var(--surface) 86%,transparent);box-shadow:0 14px 38px rgba(0,0,0,.06)}
+.read-k{font-size:11px;letter-spacing:.04em}.read-v{font-size:15px}
+.thresh-row:first-child{border-radius:12px 12px 0 0}.thresh-row:last-child{border-radius:0 0 12px 12px}
+.reply,.pledge{box-shadow:0 14px 34px rgba(0,0,0,.06);background:color-mix(in srgb,var(--sunk) 82%,var(--surface))}
+.body code{border:1px solid var(--line-soft)}
+
+main > .wrap.hero{position:relative;padding-top:clamp(52px,7vw,88px);padding-bottom:clamp(44px,6vw,72px);border-bottom:1px solid var(--line-soft)}
+main > .wrap.hero::before{content:"PUBLIC RECORD";position:absolute;top:26px;right:var(--pad);font-family:var(--f-mono);font-size:9px;letter-spacing:.2em;color:var(--faint)}
+main > .wrap.hero h1{max-width:15ch;font-size:clamp(42px,5.8vw,72px);line-height:.96;letter-spacing:-.03em}
+main > .wrap.hero .sub{max-width:68ch;margin-top:20px;line-height:1.72}
+main > .wrap.hero .eyebrow{color:var(--brass)}
+
 @media (max-width:960px){.hero-shell .hero{grid-template-columns:1fr;min-height:0;padding-block:48px 36px;gap:34px}.hero-shell .hero-copy{max-width:760px}.hero-shell .hero h1{max-width:13ch}.hero-art{order:2;max-width:820px;width:100%;margin:0 auto}.hero-art-frame{min-height:0;aspect-ratio:16/10}.hero-monolith{object-fit:cover}.banners{grid-template-columns:1fr}.banner:nth-child(1),.banner:nth-child(2),.banner:nth-child(3){grid-column:1;grid-row:auto}.banner:nth-child(1){min-height:164px}}
-@media (max-width:560px){.hero-shell .hero{padding-block:34px 30px;gap:28px}.hero-shell .hero h1{font-size:clamp(38px,11vw,54px);max-width:10.5ch}.hero-shell .hero .sub{font-size:15px;margin-top:18px}.hero-actions{flex-direction:column;margin-top:22px}.hero-action{width:100%;min-width:0}.hero-shell .stats{grid-template-columns:1fr 1fr;margin-top:22px;border-radius:12px}.hero-shell .stat{padding:14px 13px;min-height:84px}.hero-shell .stat dd{font-size:22px}.hero-shell .stat dt{font-size:8.5px;letter-spacing:.09em}.hero-proof{flex-wrap:wrap}.hero-art-frame{aspect-ratio:1/1.08;border-radius:14px}.hero-monolith{object-fit:cover}}
+@media (max-width:720px){main > .wrap.hero{padding-top:46px}main > .wrap.hero::before{top:20px}main > .wrap.hero h1{font-size:clamp(40px,10.5vw,58px)}.seen-row:hover,.chk:hover,.ref:hover,.read-row:hover,.thresh-row:hover,.draft:hover,.op:hover{transform:none}}
+@media (max-width:560px){.hero-shell .hero{padding-block:34px 30px;gap:28px}.hero-shell .hero h1{font-size:clamp(38px,11vw,54px);max-width:10.5ch}.hero-shell .hero .sub{font-size:15px;margin-top:18px}.hero-actions{flex-direction:column;margin-top:22px}.hero-action{width:100%;min-width:0}.hero-shell .stats{grid-template-columns:1fr 1fr;margin-top:22px;border-radius:12px}.hero-shell .stat{padding:14px 13px;min-height:84px}.hero-shell .stat dd{font-size:22px}.hero-shell .stat dt{font-size:8.5px;letter-spacing:.09em}.hero-proof{flex-wrap:wrap}.hero-art-frame{aspect-ratio:1/1.08;border-radius:14px}.hero-monolith{object-fit:cover}.reply,.pledge{border-radius:0 10px 10px 0}.screenbar{padding:10px}}
 @media (max-width:720px){.tablewrap{border-radius:10px}.nav a[href="#wall"]::after{bottom:-6px}}
-@media (prefers-reduced-motion:reduce){.hero-monolith,.hero-art-glow{animation:none}.op,.draft,.ref{transition:none}.banner,.seat{transition:none}}
+@media (prefers-reduced-motion:reduce){.hero-monolith,.hero-art-glow{animation:none}.op,.draft,.ref,.seen-row,.chk,.read-row,.thresh-row{transition:none}.banner,.seat{transition:none}}
