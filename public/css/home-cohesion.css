@@ -53,6 +53,20 @@
 #wall .panel-head h3{font-size:22px}
 #wall .panel-body:last-child{background:color-mix(in srgb,var(--accent2) 2%,var(--surface))}
 
+/* ---- interaction polish: the action should feel physical, while the
+   selected state remains unmistakably vermilion. ---- */
+.hero-action,.banner,#wall .seat,#wall .panel .btn{transform:translateZ(0);-webkit-tap-highlight-color:transparent}
+.hero-action:active,.banner:active,#wall .seat:active{transform:translateY(0)}
+.hero-action:focus-visible,.banner:focus-visible,#wall .seat:focus-visible{position:relative;z-index:4;box-shadow:0 0 0 2px var(--accent2),0 0 0 5px color-mix(in srgb,var(--accent2) 16%,transparent)}
+.hero-action-primary:focus-visible{box-shadow:0 0 0 2px var(--accent),0 0 0 5px color-mix(in srgb,var(--accent) 18%,transparent)}
+.hero-action:hover{border-color:var(--accent2)}
+.banner:hover{background:var(--raise)}
+#wall .seat.open{border-color:color-mix(in srgb,var(--brass) 22%,var(--line))}
+#wall .seat.open:hover{border-color:color-mix(in srgb,var(--brass) 46%,var(--line))}
+#wall .panel .btn{transition:transform .18s ease,box-shadow .18s ease,background .18s ease,border-color .18s ease}
+#wall .panel .btn:hover:not(:disabled){transform:translateY(-1px);box-shadow:0 8px 22px color-mix(in srgb,var(--accent) 12%,transparent)}
+#wall .panel .btn:active:not(:disabled){transform:translateY(0);box-shadow:none}
+
 @media (max-width:960px){
   #film .wrap{grid-template-columns:1fr;gap:24px}
   #film .sec-head{max-width:70ch}
@@ -81,4 +95,5 @@
 
 @media (prefers-reduced-motion:reduce){
   #wall .seat,#wall .seat:hover,#wall .seat[aria-pressed="true"]{transform:none}
+  .hero-action,.banner,#wall .panel .btn{transition:none}
 }
