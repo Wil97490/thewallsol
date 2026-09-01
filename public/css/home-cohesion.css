@@ -36,11 +36,29 @@
 .hero-shell .stats{margin-top:24px}
 .hero-shell .stat dd{font-weight:500}
 
+/* THE WALL — physical wall presentation. Visual only; data and interactions stay unchanged. */
+#wall .sec-head{position:relative;padding-bottom:8px}
+#wall .sec-head::after{content:"01—24";position:absolute;right:0;bottom:11px;font-family:var(--f-mono);font-size:10px;letter-spacing:.18em;color:var(--faint)}
+#wall .banners{isolation:isolate}
+#wall .wall-layout{grid-template-columns:minmax(0,1fr) minmax(320px,386px);align-items:start}
+#wall .grid{position:relative;padding:12px;background:linear-gradient(145deg,color-mix(in srgb,var(--surface) 82%,transparent),var(--sunk));border:1px solid var(--line);border-radius:18px;box-shadow:inset 0 1px 0 rgba(255,255,255,.05),0 22px 60px rgba(0,0,0,.10)}
+#wall .grid::before{content:"";position:absolute;inset:7px;border:1px solid var(--line-soft);border-radius:12px;pointer-events:none}
+#wall .seat{min-height:132px;border-radius:11px;box-shadow:0 9px 22px rgba(0,0,0,.07);z-index:1}
+#wall .seat-no{letter-spacing:.06em}
+#wall .seat-ticker{font-size:18px;letter-spacing:-.02em}
+#wall .seat-price{font-size:10.5px}
+#wall .seat[aria-pressed="true"]{box-shadow:inset 0 0 0 2px var(--accent),0 14px 28px rgba(0,0,0,.14)}
+#wall .panel{top:78px;border-radius:16px;box-shadow:0 20px 60px rgba(0,0,0,.14);border-color:color-mix(in srgb,var(--brass) 26%,var(--line))}
+#wall .panel-head{background:linear-gradient(135deg,color-mix(in srgb,var(--brass) 7%,var(--surface)),var(--surface))}
+#wall .panel-head h3{font-size:22px}
+#wall .panel-body:last-child{background:color-mix(in srgb,var(--accent2) 2%,var(--surface))}
+
 @media (max-width:960px){
   #film .wrap{grid-template-columns:1fr;gap:24px}
   #film .sec-head{max-width:70ch}
   #film .film{margin-top:2px}
-  #wall .wall-layout{gap:24px}
+  #wall .wall-layout{grid-template-columns:1fr;gap:24px}
+  #wall .panel{position:relative;top:auto}
 }
 
 @media (max-width:560px){
@@ -54,6 +72,11 @@
   #wall .sec-head h2{font-size:34px}
   #wall .banners{margin-top:24px;margin-bottom:26px}
   #wall .seat:hover{transform:none}
+  #wall .sec-head::after{position:static;display:block;margin-top:10px;letter-spacing:.16em}
+  #wall .grid{padding:8px;border-radius:14px}
+  #wall .grid::before{inset:5px;border-radius:9px}
+  #wall .seat{min-height:118px;padding:13px}
+  #wall .panel{border-radius:12px}
 }
 
 @media (prefers-reduced-motion:reduce){
