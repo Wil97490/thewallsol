@@ -37,97 +37,35 @@
 </script>
 </head>
 <body>
-
 <div class="tape" id="tape" hidden><div class="tape-track" id="tapeTrack"></div></div>
-
 <header class="topbar">
   <div class="wrap topbar-in">
     <a class="mark" href="/"><svg class="glyph" viewBox="0 0 40 40" aria-hidden="true" focusable="false"><rect x="1.25" y="1.25" width="37.5" height="37.5" fill="none" stroke="var(--brass)" stroke-width="2.5"/><text x="20" y="29.5" text-anchor="middle" font-family="Bodoni Moda, Georgia, serif" font-size="27" font-weight="800" fill="currentColor">№</text></svg>THE WALL <span id="seatRange">№ 01–24</span></a>
-    <nav class="nav">
-      <a href="/rules">The rules</a>
-      <a href="/seen">Seen</a>
-      <a href="/refused">Refused</a>
-      
-      <a href="#wall">The wall</a>
-    </nav>
+    <nav class="nav"><a href="/rules">The rules</a><a href="/seen">Seen</a><a href="/refused">Refused</a><a href="#wall">The wall</a></nav>
     <span class="pill live" id="gateState"><i></i>Gate live</span>
     <button class="pill" id="theme" type="button">Theme</button>
   </div>
 </header>
-
 <main>
-  <div class="wrap hero">
-    <h1>Twenty-four seats. You name the price. <em>None sold without a check.</em></h1>
-    <p class="sub">Every seat is bought, numbered, and taken by whoever pays more — you decide how much more. Before a payment is quoted, the wall reads the mint, the pool and the destination link. If it can't establish a fact, it doesn't sell the seat.</p>
-    <dl class="stats" id="stats"></dl>
-  </div>
-
-  <!-- Seventeen seconds of the gate doing the only thing worth watching
-       it do. Decorative reinforcement: everything it says is also said
-       in text above and on /rules, so a reader who never sees it — no
-       autoplay, reduced motion, a slow connection — loses nothing.
-
-       THE -1 IN THE FILENAME IS LOAD-BEARING. Media is served
-       `immutable` for a year, which is only safe when a changed file
-       gets a changed name. Cutting a new film means how-it-works-3.mp4
-       and two edits here — never overwriting this one, which nobody
-       would see again until 2027.
-
-       16:9, not square. The square cut is for X, where a tall frame wins
-       the feed; on a wide page it reads as a social post taped onto a
-       website. Same film, two compositions — see film.html. -->
-  <section id="film">
-    <div class="wrap">
-      <div class="sec-head">
-        <p class="eyebrow">Seventeen seconds</p>
-        <h2>What the gate does</h2>
-        <p class="note">Three real contracts, checked this morning. Two would not get a seat. <a href="/refused">All of it is published.</a></p>
+  <section class="hero-shell">
+    <div class="wrap hero">
+      <div class="hero-copy">
+        <p class="hero-kicker">Twenty-four seats · the gate decides</p>
+        <h1>Twenty-four seats. You name the price. <em>None sold without a check.</em></h1>
+        <p class="sub">Every seat is bought, numbered, and taken by whoever pays more — you decide how much more. Before a payment is quoted, the wall reads the mint, the pool and the destination link. If it can't establish a fact, it doesn't sell the seat.</p>
+        <div class="hero-actions" aria-label="Hero actions"><a class="hero-action hero-action-primary" href="#wall">Enter the wall <span aria-hidden="true">→</span></a><a class="hero-action" href="/rules">Read the rules <span aria-hidden="true">↗</span></a></div>
+        <dl class="stats" id="stats"></dl>
+        <div class="hero-proof"><span class="proof-dot" aria-hidden="true"></span><span>Gate live</span><span class="proof-sep">/</span><span>checks are published</span></div>
       </div>
-      <figure class="film">
-        <video
-          id="filmv"
-          width="1600" height="900"
-          poster="/how-it-works-2.jpg"
-          preload="none"
-          muted playsinline loop
-          controls
-          aria-label="The Wall's contract checks running against three real Solana contracts: two are refused, one is sold with its flags shown.">
-          <!-- H.264 d'abord : c'est le seul que Safari et iOS lisent.
-               WebM ensuite, pour les navigateurs livrés sans décodeur
-               propriétaire — ils sautent le mp4 et prennent celui-ci. -->
-          <source src="/how-it-works-2.mp4" type="video/mp4">
-          <source src="/how-it-works-2.webm" type="video/webm">
-        </video>
-        <figcaption class="note">Every figure in it is a real measurement from this gate.</figcaption>
-      </figure>
-    </div>
-  </section>
-
-  <section id="wall">
-    <div class="wrap">
-      <div class="sec-head">
-        <p class="eyebrow">The wall</p>
-        <h2>Pick a seat</h2>
-        <p class="note">The badge under a ticker is the result of the checks run at the moment it was bought — nothing more. <a href="/rules">Every rule is published.</a></p>
-      </div>
-      <div class="banners" id="banners" aria-label="The most expensive seats"></div>
-      <div class="wall-layout">
-        <div class="grid" id="grid" aria-label="Seats"></div>
-        <aside class="panel" id="panel" aria-live="polite"></aside>
+      <div class="hero-art" aria-hidden="true">
+        <div class="hero-art-frame"><div class="hero-art-glow"></div><img class="hero-monolith" src="/hero-monolith.svg" alt="" width="720" height="860" decoding="async"><div class="hero-art-noise"></div><div class="hero-art-caption"><span>THE WALL</span><span>01—24</span></div></div>
       </div>
     </div>
   </section>
+  <section id="film"><div class="wrap"><div class="sec-head"><p class="eyebrow">Seventeen seconds</p><h2>What the gate does</h2><p class="note">Three real contracts, checked this morning. Two would not get a seat. <a href="/refused">All of it is published.</a></p></div><figure class="film"><video id="filmv" width="1600" height="900" poster="/how-it-works-2.jpg" preload="none" muted playsinline loop controls aria-label="The Wall's contract checks running against three real Solana contracts: two are refused, one is sold with its flags shown."><source src="/how-it-works-2.mp4" type="video/mp4"><source src="/how-it-works-2.webm" type="video/webm"></video><figcaption class="note">Every figure in it is a real measurement from this gate.</figcaption></figure></div></section>
+  <section id="wall"><div class="wrap"><div class="sec-head"><p class="eyebrow">The wall</p><h2>Pick a seat</h2><p class="note">The badge under a ticker is the result of the checks run at the moment it was bought — nothing more. <a href="/rules">Every rule is published.</a></p></div><div class="banners" id="banners" aria-label="The most expensive seats"></div><div class="wall-layout"><div class="grid" id="grid" aria-label="Seats"></div><aside class="panel" id="panel" aria-live="polite"></aside></div></div></section>
 </main>
-
-<footer class="wrap">
-  A seat is advertising space, not an endorsement. Nothing here is investment advice.
-  <strong>There is a $Wall token. The team's share — 9.35% of the supply — is locked until 28 November 2026.</strong> — <a href="/rules#token">what it does and does not give you, and how to verify the lock</a>.
-  <br>Every check we run is <a href="/checks">published with the command to reproduce it</a>.
-  <br>Bought a seat and something went wrong? Write to <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a> or <a href="https://t.me/ThewallSol" rel="me noopener">@ThewallSol on Telegram</a> — both reach a person. ·
-  <a href="/rules">Rules</a> · <a href="/terms">Terms, refunds and privacy</a>
-</footer>
-
-<script src="/js/film.js" defer></script>
-<script type="module" src="/js/wall.js"></script>
+<footer class="wrap">A seat is advertising space, not an endorsement. Nothing here is investment advice. <strong>There is a $Wall token. The team's share — 9.35% of the supply — is locked until 28 November 2026.</strong> — <a href="/rules#token">what it does and does not give you, and how to verify the lock</a>.<br>Every check we run is <a href="/checks">published with the command to reproduce it</a>.<br>Bought a seat and something went wrong? Write to <a href="mailto:contact@thewallsol.com">contact@thewallsol.com</a> or <a href="https://t.me/ThewallSol" rel="me noopener">@ThewallSol on Telegram</a> — both reach a person. · <a href="/rules">Rules</a> · <a href="/terms">Terms, refunds and privacy</a></footer>
+<script src="/js/film.js" defer></script><script type="module" src="/js/wall.js"></script>
 </body>
 </html>
