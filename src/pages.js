@@ -79,6 +79,7 @@ function shell({ title, description, canonical, jsonLd, body, robots = "index, f
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bodoni+Moda:ital,opsz,wght@0,6..96,400;0,6..96,600;0,6..96,800;1,6..96,400&family=IBM+Plex+Mono:wght@400;500;600&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
 <link rel="stylesheet" href="/css/app.css">
+<link rel="stylesheet" href="/css/visual.css">
 <!-- Externe, et sans defer : la CSP interdit les scripts en ligne, et
      l'attribut doit être posé avant le premier rendu — sinon la page
      s'allume en clair puis bascule au visage de quelqu'un. -->
