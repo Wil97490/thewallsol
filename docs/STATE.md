@@ -3,7 +3,7 @@
 Operational snapshot. Facts only, each one measured. Update at the end of a
 session; do not let it drift into aspiration.
 
-**Last updated:** 2026-09-01 · base commit `1da86e891` · branch `master`
+**Last updated:** 2026-09-02 · base commit `74647b42d5b3e2f1e7308ad3bc99cb358d9f4beb` · branch `master`
 
 ---
 
@@ -12,8 +12,8 @@ session; do not let it drift into aspiration.
 | | |
 |---|---|
 | Version | `0.54.0` (V4.54) |
-| Test suite | **413 tests, 413 pass, 0 fail** (measured, `npm test` on `origin/master` at `1da86e891`) |
-| Runtime | Node ≥ 20, ESM, no mandatory dependency |
+| Test suite | **429 tests, 429 pass, 0 fail** (measured, `npm test` on `origin/master` at `74647b42d5b3e2f1e7308ad3bc99cb358d9f4beb`) |
+| Runtime | Node ≥ 20, ESM, no mandatory runtime dependency (`firebase-tools` is a `devDependency`, deploy-time only — see below) |
 | Storage | Firestore in production, memory/file locally |
 
 ## Deployment
@@ -22,16 +22,21 @@ session; do not let it drift into aspiration.
 |---|---|
 | GCP project | `project-3104b4c3-08fc-4468-848` |
 | Cloud Run service | `wall`, region `europe-west1` |
+| Firebase Hosting site | `thewallsol` (same GCP project) |
 | Service account | `wall-agents@…iam.gserviceaccount.com` |
-| Public URL | https://thewallsol.com (Firebase Hosting in front) |
+| Public URL | https://thewallsol.com (Firebase Hosting in front of Cloud Run) |
 | Secrets | Secret Manager: `gate-token`, `admin-token`, `anthropic-api-key`, `solana-rpc-url`, `safe-browsing-key` |
 | GCP credits | expire **2026-11-24** |
-| Live revision | `wall-00115-ref`, **100% of traffic** (measured `gcloud run services describe wall`, 2026-09-01) |
+| Live revision | `wall-00123-dag`, **100% of traffic** (measured `gcloud run services describe wall`, 2026-09-02) |
 
-Deployment path is `./scripts/deploy.sh` only: tests → build → `--no-traffic
---tag pre` → preflight on the candidate → traffic. There is no `--force`.
+Deployment path is `./scripts/deploy.sh` only: tests → Cloud Run build →
+`--no-traffic --tag pre` → preflight on the candidate → Cloud Run traffic
+switch → **Firebase Hosting deploy** (`firebase deploy --only hosting`,
+added by SPEC-015 — see Decisions). There is no `--force`. A one-time
+`firebase login` (or an equivalent non-interactive credential) is required
+on whichever machine runs this, per `DEPLOY.md`.
 
-## Recent integrations — PR #2 through #14 (merged into `master`)
+## Recent integrations — PR #2 through #20 (merged into `master`)
 
 | PR | Title | Branch | Merged |
 |---|---|---|---|
@@ -46,6 +51,17 @@ Deployment path is `./scripts/deploy.sh` only: tests → build → `--no-traffic
 | #12 | feat: integrate final monolith asset pack | `spec/010-monolith-asset-integration` | 2026-09-01 |
 | #13 | perf: optimize WebP MIME and cache headers | `spec/011-hero-asset-cache` | 2026-09-01 |
 | #14 | style: micro-interaction polish (hero, seats, panel, podium) | `spec/012-micro-interactions-final` | 2026-09-01 |
+| #15 | docs: refresh STATE and DECISIONS after PR #2-14 | `spec/013a-state-decisions-refresh` | 2026-09-02 |
+| #16 | perf: hero theme-aware loading (one WebP per visit, not two) | `spec/013b-hero-theme-aware-loading` | 2026-09-02 |
+| #18 | perf: conditional revalidation (ETag + Last-Modified) for CSS/JS | `spec/014-conditional-static-assets-cache` | 2026-09-02 |
+| #19 | fix: enable Firebase edge revalidation for static assets | `spec/014a-firebase-conditional-cache-edge` | 2026-09-02 |
+| #20 | fix: publish firebase.json to Firebase Hosting during deploy | `spec/015-firebase-hosting-deploy` | 2026-09-02 |
+
+**PR #17** (`spec/013c-state-decisions-refresh-v2`, "docs: refresh STATE and
+DECISIONS after PR #15-16") is **still OPEN, never merged** — its own scope
+(PR #15-16 only) has since been overtaken by PR #18-20, and this SPEC-016
+refresh supersedes it. Not closed, not merged, not edited by this pass —
+recorded here so a future session does not mistake it for live work.
 
 What each carried, in plain terms:
 
@@ -63,8 +79,9 @@ What each carried, in plain terms:
 - **Final monolith asset (#12):** the placeholder SVG hero monolith is
   replaced by the production photorealistic WebP pair
   (`monolith-dark.webp` / `monolith-light.webp`, 767×1024, ~307 KB
-  combined). Both theme variants still load on every visit; no lazy-loading
-  by active theme has been built (flagged, not yet specced).
+  combined). At the time of this PR, both theme variants loaded on every
+  visit — **corrected by #16, below; this is no longer current
+  behaviour.**
 - **WebP MIME/cache fix (#13):** `.webp` was missing from the static file
   server's MIME table and its 1-year-immutable cache list — it was served
   as `application/octet-stream` with a 1-day cache. Now served as
@@ -73,6 +90,56 @@ What each carried, in plain terms:
 - **Micro-interaction polish (#14):** hover/active/focus-visible feedback
   on the hero CTAs, podium, seat grid and panel CTA; `prefers-reduced-motion`
   neutralizes the added transforms. Visual only, no business logic touched.
+- **STATE/DECISIONS refresh (#15):** the previous pass of this same
+  documentation-only exercise, covering PR #2-14.
+- **Hero theme-aware loading (#16):** the two `<img>` hero elements
+  replaced by one CSS `background-image`-driven element, gated by the
+  same 3-state theme selector already used for the `display` toggle. The
+  browser now fetches only the visible variant. **Verified twice, live in
+  a real browser against production:** once immediately after PR #16's
+  own deploy, and again in this session after the final PR #20 deploy —
+  both times, a fresh navigation with `prefers-color-scheme: dark` loaded
+  only `monolith-dark.webp`, and with `prefers-color-scheme: light`,
+  only `monolith-light.webp`.
+- **Conditional static-asset caching (#18):** `.css`/`.js`/`.mjs`
+  responses now carry a content-hash `ETag` and `mtime`-based
+  `Last-Modified`, computed once per file and cached in memory.
+  `Cache-Control: no-cache` is unchanged — the validator makes
+  revalidation cheap, it does not weaken the freshness guarantee. HTML
+  and out-of-scope assets (svg/png/jpg/mp4/webm/webp) are unaffected.
+- **Firebase edge revalidation fix, part 1 (#19):** discovered — by a
+  direct production comparison, not inference — that Firebase Hosting
+  does not forward a client's `If-None-Match` to the Cloud Run origin by
+  default: the origin correctly returned `304`, the public domain always
+  returned `200`. `firebase.json` gained a Hosting `headers` rule
+  (`Cache-Control: public, max-age=0, must-revalidate` for
+  `**/*.@(css|js|mjs)`) intended to make Firebase's own edge revalidate.
+- **Firebase Hosting deploy, part 2 (#20):** PR #19's rule alone was not
+  enough — `scripts/deploy.sh` never ran `firebase deploy`, so
+  `firebase.json` was never actually published to Firebase Hosting by
+  anything in this repository. Added a `firebase deploy --only hosting`
+  step after the existing Cloud Run traffic switch, and pinned
+  `firebase-tools` as a `devDependency` (`^15.28.2` — tested first,
+  chosen because it carries no critical/high `npm audit` finding, unlike
+  `^13.x`; never installed in the Cloud Run image, `Dockerfile` runs
+  `npm install --omit=dev`).
+
+**Firebase Hosting conditional-cache — now confirmed working in
+production**, measured directly against `https://thewallsol.com/css/app.css`
+after the PR #20 deploy (master `74647b42d5b3e2f1e7308ad3bc99cb358d9f4beb`,
+revision `wall-00123-dag`), 2026-09-02:
+
+| Request | Result |
+|---|---|
+| Unconditional | `200`, `ETag` and `Last-Modified` present, `Cache-Control: public, max-age=0, must-revalidate` |
+| `If-None-Match` with the real `ETag` | `304`, empty body, same `ETag` |
+| `If-None-Match` with a wrong `ETag` | `200`, full body |
+| `If-Modified-Since`, valid (after `Last-Modified`) | `304` |
+| `If-Modified-Since`, old (before `Last-Modified`) | `200` |
+
+This closes the gap PR #18/#19 could not close alone — SPEC-014 →
+SPEC-014A → SPEC-015 is complete and verified end to end, origin and
+edge both.
 
 Two of these merges have no paired `SPEC-0NN`/`REPORT-0NN` document on
 `master`: **PR #4** (`docs/specs/SPEC-003-visual-refactor.md` exists but
@@ -86,11 +153,14 @@ a future session does not go looking for a document that was never written.
 **The Anthropic API credit exhaustion is resolved.**
 Original blocker measured 2026-08-30: `HTTP 400 — "Your credit balance is
 too low to access the Anthropic API."` The operator corrected billing; the
-deploy that produced the currently-live revision (`wall-00115-ref`,
-2026-09-01T12:08:01Z) ran the real `clean token sells` preflight probe
-against a real Anthropic call and got **200** (previously 409) — recorded
-in that deploy's own log. Cloud Run confirms 100% of traffic is on that
-revision now (measured 2026-09-01).
+deploy that produced revision `wall-00115-ref` (2026-09-01T12:08:01Z) ran
+the real `clean token sells` preflight probe against a real Anthropic call
+and got **200** (previously 409) — recorded in that deploy's own log.
+Every deploy since (through PR #16, #18, #19, #20 — revisions
+`wall-00117-wew` through the current `wall-00123-dag`) has re-run the same
+preflight probe as part of `scripts/deploy.sh`'s release gate and gone
+green each time; this is not a one-off result, it has held across four
+subsequent deploys.
 
 Caveat, so this is not overstated: the Firestore `agent_audit` log's most
 recent `moderator: unavailable` entry (with the same credit-exhausted
@@ -108,16 +178,17 @@ above).
 ## Commercial state
 
 - Seats sold: **1 of 24** (seat №10 — measured live via `/api/wall`,
-  2026-09-01). `ticker: PUMP`, `priceUsd: 1`, since `2026-08-25T17:50:46Z`
-  — **predates this engagement's SPEC-002 through SPEC-012 work.** The $1
-  price was flagged early in this engagement as needing an operator
-  decision (leave it / correct it in the database / some other resolution)
-  and **remains undecided.** Not touched here — out of scope for a
+  reconfirmed 2026-09-02, unchanged since first measured 2026-09-01).
+  `ticker: PUMP`, `priceUsd: 1`, since `2026-08-25T17:50:46Z` — predates
+  this engagement's SPEC-002 through SPEC-015 work entirely. The $1 price
+  was flagged early in this engagement as needing an operator decision
+  (leave it / correct it in the database / some other resolution) and
+  **remains undecided.** Not touched here — out of scope for a
   documentation-only pass, and doing so would be a data change this SPEC
   explicitly excludes.
 - Refusals published: `/refused/apetacio`, `/refused/pinkotc`,
-  `/refused/pisstacio` (measured live via `/api/refused`, 2026-09-01 — one
-  more than previously recorded here).
+  `/refused/pisstacio` — three, measured live via `/api/refused`,
+  reconfirmed 2026-09-02, unchanged since first measured 2026-09-01.
 - Prospecting: paused, list is historical, **do not rebuild it**.
 
 ## Not built, on purpose
