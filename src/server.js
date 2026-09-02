@@ -1054,15 +1054,15 @@ const server = http.createServer(async (req, res) => {
 
     /* ---- static ---- */
     if (req.method === "GET") {
-      if (p === "/" ) return serveStatic(res, "index.html");
-      if (p === "/admin") return serveStatic(res, "admin.html");
-      if (p === "/refused") return serveStatic(res, "refused.html");
-      if (p === "/robots.txt") return serveStatic(res, "robots.txt");
+      if (p === "/" ) return serveStatic(req, res, "index.html");
+      if (p === "/admin") return serveStatic(req, res, "admin.html");
+      if (p === "/refused") return serveStatic(req, res, "refused.html");
+      if (p === "/robots.txt") return serveStatic(req, res, "robots.txt");
       if (p === "/sitemap.xml") {
         const rows = (await db.listRefusals({ limit: 400 })).filter((r) => !r.hidden && r.slug);
         return text(res, 200, sitemap(rows), "application/xml; charset=utf-8");
       }
-      if (p === "/terms") return serveStatic(res, "terms.html");
+      if (p === "/terms") return serveStatic(req, res, "terms.html");
       if (p.startsWith("/refused/")) {
         /* Server-rendered, complete on the first response. A page that
          * has to exist in a search index the moment it is written cannot
@@ -1075,9 +1075,9 @@ const server = http.createServer(async (req, res) => {
         if (row.hidden) return text(res, 410, refusalGonePage(slug), "text/html; charset=utf-8");
         return text(res, 200, refusalPage(row), "text/html; charset=utf-8");
       }
-      if (p.startsWith("/seat/")) return serveStatic(res, "index.html");
-      if (p === "/rules") return serveStatic(res, "rules.html");
-      return serveStatic(res, p);
+      if (p.startsWith("/seat/")) return serveStatic(req, res, "index.html");
+      if (p === "/rules") return serveStatic(req, res, "rules.html");
+      return serveStatic(req, res, p);
     }
 
     return json(res, 404, { error: "not found" });
