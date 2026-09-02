@@ -18,6 +18,8 @@ Format: date · decision · why · status · where it is enforced.
 | V4.54 | Previous holder receives **0%** of a takeover | rewards participation, not resale; a royalty would make it a financial marketplace | 🟢 | not implemented — nothing pays the previous holder |
 | V4.54 | The token gives no seat, no discount, no claim | anything giving a holder an interest in a screening decision corrodes the ledger | 🟢 | `public/rules.html` |
 | 2026-08-28 | 9.35% of supply locked to 2026-11-28, Streamflow, non-cancelable | verifiable without trusting the page | 🟢 | `public/rules.html`, contract `683Jjc…dtryJ` |
+| 2026-09-01 | Telegram and X are removed as public contact channels; `contact@thewallsol.com` is the sole channel until a new official one exists | both accounts confirmed suspended by the operator | 🟢 | `SPEC-008`, every public footer, `public/rules.html` |
+| 2026-09-01 | The photorealistic WebP monolith (dark/light) is the final hero visual, replacing the provisional abstract SVG | operator validated the direction; the SVG was explicitly provisional | 🟢 | `SPEC-010`, `public/monolith-dark.webp`, `public/monolith-light.webp` |
 
 ## Method
 
@@ -50,3 +52,7 @@ Format: date · decision · why · status · where it is enforced.
   RPC calls already in use; deliberately **not** built — it would be a flag,
   never a refusal, and nothing has been sold yet.
 - Legal entity and address, required before any real sale.
+- Seat №10 shows `priceUsd: 1` (since 2026-08-25). Flagged early in this
+  engagement as needing an operator decision — leave it, correct it in the
+  database, or another resolution. No decision has been made; the seat is
+  untouched.
