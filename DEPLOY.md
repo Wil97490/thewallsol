@@ -75,14 +75,20 @@ Les réglages non secrets vivent dans `deploy.env`, à la racine. L'adresse de
 trésorerie y est déjà posée ; il reste `PROJECT` et `PUBLIC_BASE_URL` à
 remplir.
 
+Une seule fois, avant le premier déploiement : `npx firebase login` **[VOUS]**
+— une session interactive, dans un navigateur, sur le compte Google associé
+au projet Firebase. Rien à installer : `firebase-tools` est déjà une
+dépendance de développement du dépôt (`npm install` suffit).
+
 ```bash
 # éditez deploy.env, puis :
 npm run deploy
 ```
 
-`deploy.sh` fait trois choses, dans cet ordre, et s'arrête à la première
-qui échoue : il lance les tests, il déploie, puis il rejoue la checklist
-contre l'instance **déployée**. Il n'y a pas de `--force`.
+`deploy.sh` fait quatre choses, dans cet ordre, et s'arrête à la première
+qui échoue : il lance les tests, il déploie Cloud Run, il rejoue la
+checklist contre l'instance **déployée**, puis il publie `firebase.json`
+sur Firebase Hosting. Il n'y a pas de `--force`.
 
 Le service **refuse de démarrer** en production s'il manque `SOLANA_RPC_URL`,
 `GATE_TOKEN`, `ADMIN_TOKEN`, `TREASURY_WALLET`, `SAFE_BROWSING_KEY`, ou si

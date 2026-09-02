@@ -72,3 +72,20 @@ gcloud run services update-traffic "$SERVICE" \
   --project "$PROJECT" --region "$REGION" \
   --to-latest --remove-tags pre >/dev/null
 echo "→ en ligne : $URL"
+
+# Cloud Run est déjà en ligne et correct à ce stade. Firebase Hosting est
+# une couche séparée devant lui (voir firebase.json) : sans cette étape,
+# ses propres règles (headers, cache) ne sont jamais publiées, même quand
+# elles changent dans ce dépôt. Un échec ici n'annule pas la bascule
+# Cloud Run qui précède — il la laisse en l'état et s'arrête net.
+echo "→ déploiement Firebase Hosting (firebase.json)"
+if ! npx firebase deploy --only hosting --project "$PROJECT" --non-interactive; then
+  echo
+  echo "✖ Le déploiement Firebase Hosting a échoué."
+  echo "  Cloud Run reste en ligne et correct (voir ci-dessus) : seule la"
+  echo "  configuration Firebase Hosting (firebase.json) n'est pas publiée."
+  echo "  Corrigez, puis relancez ce script — la partie Cloud Run rejouera"
+  echo "  sans effet si rien n'a changé côté service."
+  exit 1
+fi
+echo "→ Firebase Hosting à jour"
