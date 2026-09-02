@@ -6,7 +6,7 @@ SPEC-014 added ETag/Last-Modified validation for CSS/JS/MJS at the Cloud Run ori
 
 Production verification showed that the public Firebase Hosting URL returned 200 with the full body even when the client supplied the exact ETag. The same request sent directly to Cloud Run returned 304. The failure is therefore at the Firebase Hosting layer, not in `src/http.js`.
 
-Firebase Hosting documents that Cloud Run responses are dynamic content and are not cached on the CDN by default, and that explicitly public cache-control enables CDN caching. citeturn0search3turn0search1
+Firebase Hosting documents that Cloud Run responses are dynamic content and are not cached on the CDN by default, and that explicitly public cache-control enables CDN caching.
 
 ## Goal
 
