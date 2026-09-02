@@ -1,0 +1,168 @@
+# SPEC-015 — firebase-hosting-deploy
+
+**Author:** Operator (relayed via Claude Code session)
+**Date:** 2026-09-02
+**Status:** draft
+**Branch:** `spec/015-firebase-hosting-deploy`
+
+---
+
+## 1. Objective
+
+`npm run deploy` publishes `firebase.json` to Firebase Hosting, not only the
+Cloud Run service — so the Hosting-layer `Cache-Control` rule added by
+PR #19 actually takes effect on `https://thewallsol.com`.
+
+## 2. Context
+
+🟢 VALIDATED, measured directly on production after PR #19's merge and
+Cloud Run deploy (revision `wall-00121-riz`, 100% traffic, 2026-09-02):
+
+- The Cloud Run origin correctly returns `304` for a matching `ETag` on
+  CSS/JS/MJS (SPEC-014, confirmed working at the origin).
+- The public domain `https://thewallsol.com` still returned `200` with the
+  full body for the same conditional request, and `Cache-Control: no-cache`
+  instead of the `public, max-age=0, must-revalidate` rule PR #19 added to
+  `firebase.json`.
+- Root cause, confirmed by reading `scripts/deploy.sh` in full: it runs
+  `gcloud run deploy` and a traffic switch only. It contains no `firebase
+  deploy` call anywhere. Neither does `package.json`, any other script in
+  `scripts/`, or `.github/workflows/ci.yml` (test-only, no deploy step at
+  all). `firebase.json` has therefore never been pushed to Firebase Hosting
+  by anything in this repository, by anyone, since the file was introduced.
+
+This SPEC addresses exactly that gap.
+
+## 3. Scope
+
+- Add a Firebase Hosting deploy step to `scripts/deploy.sh`, run after the
+  existing Cloud Run traffic switch succeeds.
+- Add `firebase-tools` as a pinned `devDependency` so the deploy step is
+  reproducible and does not depend on an ambient global install or an
+  unpinned `npx` fetch.
+- Document the one new operator-only prerequisite (`firebase login`) in
+  `DEPLOY.md`, and correct its existing "trois choses" description of what
+  `deploy.sh` does.
+
+## 4. Out of scope
+
+- No change to `src/http.js`, `src/server.js`, or any application HTTP
+  behaviour — SPEC-014/SPEC-014A already implement and prove the response
+  policy itself.
+- No change to `public/`, business logic, or any Firebase Hosting
+  `rewrites`/`headers` rule already in `firebase.json` — the existing
+  configuration is deployed as-is, not redesigned.
+- No CI/CD change — `.github/workflows/ci.yml` stays test-only; deploy
+  remains an operator-run local command, unchanged from today's model.
+- No `.firebaserc` file — the Firebase project is passed explicitly via
+  `--project "$PROJECT"`, reusing the variable `deploy.env` already defines
+  for `gcloud`, instead of introducing a second place that names the
+  project.
+- No actual deployment, and no production verification — both require a
+  human `GO` and, separately, a `firebase login` this environment does not
+  have (§9, §11).
+
+## 5. Files concerned
+
+| File | Expected change |
+|---|---|
+| `scripts/deploy.sh` | New step after the Cloud Run traffic switch: `firebase deploy --only hosting --project "$PROJECT" --non-interactive`, exits non-zero with a clear message on failure |
+| `package.json` | New `devDependencies` entry: `firebase-tools` |
+| `DEPLOY.md` | Correct the "trois choses" description; note `firebase login` as a one-time **[VOUS]** prerequisite |
+| `test/deploy-pipeline.test.js` | New — locks the Hosting deploy step's presence in `scripts/deploy.sh` and the `firebase-tools` devDependency |
+| `docs/specs/SPEC-015-firebase-hosting-deploy.md` | This document |
+| `docs/reports/REPORT-015-firebase-hosting-deploy.md` | Execution report |
+
+Anything not in this table is out of scope. If the work needs another file,
+stop and amend the SPEC.
+
+## 6. Expected behaviour
+
+Running `npm run deploy`:
+
+1. Behaves exactly as before through the Cloud Run traffic switch (no
+   change to that sequence, its flags, or its preflight gate).
+2. Then runs a Firebase Hosting deploy of the repository's own
+   `firebase.json`, using the project already configured in `deploy.env`.
+3. If the Hosting deploy fails, the script exits non-zero with a message
+   that distinguishes what already happened (Cloud Run is live and correct)
+   from what did not (Hosting configuration not published) — it does not
+   retry, does not roll back Cloud Run, and does not silently continue.
+4. If `firebase-tools` was installed via `npm install` beforehand (as
+   `gcloud` already must be present beforehand), the step runs with no
+   network fetch of the CLI itself.
+
+## 7. Acceptance criteria
+
+1. `scripts/deploy.sh` still runs `gcloud run deploy` and the traffic
+   switch exactly as before this SPEC (diff confined to an addition after
+   the existing final `echo`).
+2. The same script additionally invokes `firebase deploy --only hosting`
+   against the project in `deploy.env`, using the `firebase.json` already
+   in the repository, unmodified.
+3. `firebase.json`'s existing `rewrites` and `headers` entries are
+   byte-for-byte unchanged by this SPEC.
+4. `npm test`, `npm run check`, and `git diff --check` all pass.
+5. No real `npm run deploy` run happens as part of this SPEC's
+   implementation — only after a separate, explicit human `GO`, per
+   `CLAUDE.md §6`.
+6. After a real deployment (out of scope for this SPEC to perform), a
+   direct check against `https://thewallsol.com/css/app.css` must show:
+   unconditional request → `200` with an `ETag`; matching `ETag` → `304`
+   with an empty body; wrong `ETag` → `200`; and a `Cache-Control` header
+   of `public, max-age=0, must-revalidate`. This SPEC does not claim any of
+   these as measured — that claim belongs to the REPORT that follows an
+   actual deployment.
+7. No regression on other assets, `404` responses, or the five security
+   headers — none of which this SPEC's files touch.
+8. No acceptance criterion in §7 that requires a live public-domain
+   measurement is marked PASS anywhere in this SPEC or its REPORT unless
+   that exact measurement was actually taken after a real deployment.
+
+## 8. Invariants that must not move
+
+None — no `CLAUDE.md §9` business invariant is near a deploy-script
+change; no application code, pricing, or screening logic is touched.
+
+## 9. Risks
+
+- **Firebase CLI authentication is not configured in this environment.**
+  Verified directly: `npx firebase-tools login:list` reports "No
+  authorized accounts", and `gcloud auth application-default
+  print-access-token` reports no default credentials either. The CLI
+  itself is fetchable and runs (`npx firebase-tools --version` succeeded,
+  read-only, no deploy attempted). This means the mechanism this SPEC adds
+  cannot be exercised end-to-end from this environment; only the operator,
+  running `firebase login` once, can close that gap. This is reported here
+  precisely so the REPORT does not, and cannot, claim a real deploy that
+  did not happen.
+- A `firebase deploy` failure after the Cloud Run traffic switch leaves
+  Cloud Run correctly live but Hosting configuration stale — an
+  inconsistent-but-safe state (the origin's own `no-cache`/`ETag` policy
+  from SPEC-014 still holds; only the edge-layer optimisation from PR #19
+  is not yet in effect). The script surfaces this loudly rather than
+  masking it, matching the existing Cloud Run failure path's own pattern.
+- `firebase-tools` pulls its own dependency tree (deprecation warnings were
+  observed for a few of its own transitive packages during the read-only
+  version check — not a blocker, but noted since it is a new devDependency
+  in a repository that previously had none).
+
+## 10. Tests required
+
+| Test | Proves | Must be seen failing first |
+|---|---|---|
+| `test/deploy-pipeline.test.js` | `scripts/deploy.sh` contains a Hosting deploy step referencing `firebase deploy`, `--only hosting`, and `$PROJECT`; `package.json` lists `firebase-tools` as a `devDependency`; `firebase.json`'s `rewrites`/`headers` are unchanged | Yes — none of this exists before this SPEC |
+| `npm test` (full suite) | No regression elsewhere | No — nothing else changes |
+| `npm run check` | No syntax error | No |
+
+## 11. Human validation required
+
+- `firebase login` (or an equivalent non-interactive credential this
+  environment does not have) — a one-time operator action, outside what
+  Claude Code can do per `CLAUDE.md §6` ("never handle secrets") and
+  outside what is technically possible here regardless (no browser/OAuth
+  flow available in this environment).
+- The actual `npm run deploy` run and the post-deploy production
+  verification in §7.6 — both require an explicit `GO`, separate from the
+  implementation this SPEC covers.
+- Merge of the resulting PR.
