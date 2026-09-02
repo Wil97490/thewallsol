@@ -46,7 +46,7 @@ in `STATE.md` as superseded, not touched, not closed, not merged.
 
 | File | Change | Lines |
 |---|---|---|
-| `docs/STATE.md` | Header, test count, live revision, PR table (+5 rows, PR #17 excluded and explained), corrected hero-loading claim, new production conditional-cache evidence table, Anthropic-blocker paragraph updated to span 5 deploys instead of 1, commercial-state dates reconfirmed | +115 / −22 |
+| `docs/STATE.md` | Header, test count, live revision, PR table (+5 rows, PR #17 excluded and explained), corrected hero-loading claim, new production conditional-cache evidence table, Anthropic-blocker paragraph updated to span 5 deploys instead of 1, commercial-state dates reconfirmed | +93 / −22 |
 | `docs/DECISIONS.md` | 3 rows appended (1 Product, 2 Method), nothing removed or edited — confirmed via `git diff docs/DECISIONS.md \| grep '^-'` returning empty | +3 / −0 |
 
 ## 5. Tests executed

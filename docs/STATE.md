@@ -159,7 +159,7 @@ and got **200** (previously 409) — recorded in that deploy's own log.
 Every deploy since (through PR #16, #18, #19, #20 — revisions
 `wall-00117-wew` through the current `wall-00123-dag`) has re-run the same
 preflight probe as part of `scripts/deploy.sh`'s release gate and gone
-green each time; this is not a one-off result, it has held across five
+green each time; this is not a one-off result, it has held across four
 subsequent deploys.
 
 Caveat, so this is not overstated: the Firestore `agent_audit` log's most
