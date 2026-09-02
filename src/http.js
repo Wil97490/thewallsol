@@ -47,8 +47,31 @@ export function text(res, code, body, type = "text/plain; charset=utf-8") {
   res.end(body);
 }
 
+// CSS/JS sont revalidés à chaque fois (voir plus bas) mais n'avaient
+// jusqu'ici aucun validateur à revalider CONTRE — no-cache dégénérait en
+// no-store, un retéléchargement complet à chaque requête. L'ETag (hash du
+// contenu) rend cette revalidation gratuite quand rien n'a changé, sans
+// toucher à la politique no-cache elle-même : un contenu différent produit
+// toujours un ETag différent, donc toujours un 200 frais.
+//
+// Mis en cache en mémoire par chemin de fichier, le conteneur Cloud Run
+// étant immuable pendant la durée de vie d'une révision — mais invalidé
+// sur changement de mtime, pour que `npm run dev` (qui ne redémarre pas
+// sur une simple édition de public/*.css) ne serve jamais un fichier
+// modifié sur disque sans le relire.
+const validatorCache = new Map();
+function staticValidators(full, mtimeMs) {
+  const cached = validatorCache.get(full);
+  if (cached && cached.mtimeMs === mtimeMs) return cached;
+  const hash = crypto.createHash("sha256").update(fs.readFileSync(full)).digest("hex");
+  const entry = { mtimeMs, etag: `"${hash}"`, lastModified: new Date(mtimeMs).toUTCString() };
+  validatorCache.set(full, entry);
+  return entry;
+}
+const CONDITIONAL_EXTS = new Set([".css", ".js", ".mjs"]);
+
 /** Serves public/ only. A path that escapes it is a 404, not a file. */
-export function serveStatic(res, urlPath) {
+export function serveStatic(req, res, urlPath) {
   const rel = decodeURIComponent(urlPath.replace(/^\/+/, "")) || "index.html";
   const full = path.resolve(PUBLIC_DIR, rel);
   if (!full.startsWith(path.resolve(PUBLIC_DIR) + path.sep) && full !== path.resolve(PUBLIC_DIR, "index.html")) {
@@ -56,7 +79,7 @@ export function serveStatic(res, urlPath) {
   }
   let stat;
   try { stat = fs.statSync(full); } catch { return json(res, 404, { error: "not found" }); }
-  if (stat.isDirectory()) return serveStatic(res, path.join(rel, "index.html"));
+  if (stat.isDirectory()) return serveStatic(req, res, path.join(rel, "index.html"));
 
   const type = TYPES[path.extname(full).toLowerCase()] || "application/octet-stream";
   // Le HTML, le JS et le CSS sont revalidés à chaque fois. Sans ça, un
@@ -73,6 +96,26 @@ export function serveStatic(res, urlPath) {
   const cache = revalidate ? "no-cache"
     : media ? "public, max-age=31536000, immutable"
     : "public, max-age=86400";
+
+  if (CONDITIONAL_EXTS.has(ext)) {
+    const { etag, lastModified } = staticValidators(full, stat.mtimeMs);
+    const ifNoneMatch = req.headers["if-none-match"];
+    const ifModifiedSince = req.headers["if-modified-since"];
+    let notModified = false;
+    if (ifNoneMatch) {
+      notModified = ifNoneMatch === "*" || ifNoneMatch === etag;
+    } else if (ifModifiedSince) {
+      const since = Date.parse(ifModifiedSince);
+      notModified = !Number.isNaN(since) && Math.floor(stat.mtimeMs / 1000) * 1000 <= since;
+    }
+    if (notModified) {
+      res.writeHead(304, { "cache-control": cache, etag, "last-modified": lastModified, ...SECURITY_HEADERS });
+      return res.end();
+    }
+    res.writeHead(200, { "content-type": type, "cache-control": cache, etag, "last-modified": lastModified, ...SECURITY_HEADERS });
+    return fs.createReadStream(full).pipe(res);
+  }
+
   res.writeHead(200, { "content-type": type, "cache-control": cache, ...SECURITY_HEADERS });
   fs.createReadStream(full).pipe(res);
 }

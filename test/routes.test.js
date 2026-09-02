@@ -1,7 +1,10 @@
 import "./_helpers.js";
-import test, { describe, before, after } from "node:test";
+import test, { describe, before, after, mock } from "node:test";
 import assert from "node:assert/strict";
 import { spawn } from "node:child_process";
+import http from "node:http";
+import fsMod from "node:fs";
+import { serveStatic } from "../src/http.js";
 
 /* ------------------------------------------------------------------ *
  * LES ROUTES, POUR DE VRAI
@@ -194,6 +197,134 @@ describe("every public page answers", () => {
     for (const path of ["/", "/rules", "/refused", "/seen", "/terms"]) {
       const body = await fetch(`http://127.0.0.1:${PORT}${path}`).then((r) => r.text());
       assert.ok(body.includes('href="/checks'), `${path} ne mène pas aux contrôles`);
+    }
+  });
+});
+
+/* ------------------------------------------------------------------ *
+ * SPEC-014 — ETag/Last-Modified sur CSS/JS
+ *
+ * no-cache imposait déjà une revalidation systématique — mais sans
+ * validateur à revalider contre, "revalider" dégénérait en "tout
+ * retélécharger". Ces tests vérifient que la revalidation devient
+ * réellement gratuite (304, sans corps) quand rien n'a changé, sans
+ * jamais affaiblir la garantie que no-cache offrait déjà : un ETag ou
+ * un Last-Modified qui ne correspond pas doit toujours renvoyer le
+ * contenu complet.
+ * ------------------------------------------------------------------ */
+describe("assets CSS/JS — revalidation conditionnelle (SPEC-014)", () => {
+  test("une requête sans condition reçoit le contenu, un ETag et un Last-Modified", async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/css/app.css`);
+    assert.equal(r.status, 200);
+    assert.equal(r.headers.get("cache-control"), "no-cache", "no-cache ne doit pas bouger");
+    assert.ok(r.headers.get("etag"), "aucun ETag envoyé");
+    assert.ok(r.headers.get("last-modified"), "aucun Last-Modified envoyé");
+    const body = await r.text();
+    assert.ok(body.length > 0, "le corps est vide sur une réponse non conditionnelle");
+  });
+
+  test("un ETag correct reçoit 304 sans corps", async () => {
+    const first = await fetch(`http://127.0.0.1:${PORT}/css/app.css`);
+    const etag = first.headers.get("etag");
+    await first.text();
+    const r = await fetch(`http://127.0.0.1:${PORT}/css/app.css`, { headers: { "if-none-match": etag } });
+    assert.equal(r.status, 304);
+    assert.equal(await r.text(), "", "un 304 ne doit porter aucun corps");
+    assert.equal(r.headers.get("cache-control"), "no-cache", "no-cache doit rester inchangé même sur un 304");
+  });
+
+  test("un ETag incorrect reçoit 200 et le contenu complet", async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/css/app.css`, {
+      headers: { "if-none-match": '"not-the-real-hash"' },
+    });
+    assert.equal(r.status, 200);
+    assert.ok((await r.text()).length > 0);
+  });
+
+  test("un If-Modified-Since postérieur au fichier reçoit 304 sans corps", async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/css/app.css`, {
+      headers: { "if-modified-since": "Wed, 01 Jan 2030 00:00:00 GMT" },
+    });
+    assert.equal(r.status, 304);
+    assert.equal(await r.text(), "");
+  });
+
+  test("un If-Modified-Since ancien reçoit 200 et le contenu complet", async () => {
+    const r = await fetch(`http://127.0.0.1:${PORT}/css/app.css`, {
+      headers: { "if-modified-since": "Wed, 01 Jan 2020 00:00:00 GMT" },
+    });
+    assert.equal(r.status, 200);
+    assert.ok((await r.text()).length > 0);
+  });
+
+  test("le HTML ne devient jamais une réponse conditionnelle", async () => {
+    // "*" dans If-None-Match correspond à n'importe quelle représentation
+    // existante — si le HTML avait hérité du mécanisme par erreur, ceci
+    // renverrait 304 sans qu'aucun ETag ne soit jamais envoyé.
+    const r = await fetch(`http://127.0.0.1:${PORT}/`, { headers: { "if-none-match": "*" } });
+    assert.equal(r.status, 200, "le HTML ne doit jamais répondre 304");
+    assert.equal(r.headers.get("etag"), null, "le HTML ne doit porter aucun ETag");
+    assert.equal(r.headers.get("last-modified"), null, "le HTML ne doit porter aucun Last-Modified");
+  });
+
+  test("les extensions hors périmètre gardent leur cache-control inchangé, sans validateur", async () => {
+    const cases = [
+      ["/favicon.svg", "public, max-age=86400"],
+      ["/og.png", "public, max-age=31536000, immutable"],
+      ["/how-it-works-2.jpg", "public, max-age=31536000, immutable"],
+      ["/how-it-works-2.mp4", "public, max-age=31536000, immutable"],
+      ["/how-it-works-2.webm", "public, max-age=31536000, immutable"],
+      ["/monolith-dark.webp", "public, max-age=31536000, immutable"],
+    ];
+    for (const [path, expected] of cases) {
+      const r = await fetch(`http://127.0.0.1:${PORT}${path}`);
+      assert.equal(r.headers.get("cache-control"), expected, `${path} : cache-control changé`);
+      assert.equal(r.headers.get("etag"), null, `${path} ne doit pas porter d'ETag`);
+    }
+  });
+
+  test("les en-têtes de sécurité, la protection contre le path traversal et les 404 restent inchangés", async () => {
+    const traversal = await fetch(`http://127.0.0.1:${PORT}/../src/config.js`);
+    assert.equal(traversal.status, 404);
+    assert.equal(traversal.headers.get("x-content-type-options"), "nosniff");
+    assert.ok(traversal.headers.get("content-security-policy"));
+
+    const notFound = await fetch(`http://127.0.0.1:${PORT}/nonexistent.css`);
+    assert.equal(notFound.status, 404);
+    assert.equal(notFound.headers.get("cache-control"), "no-store");
+  });
+
+  test("les 7 chemins nommés qui appellent serveStatic répondent toujours", async () => {
+    // SPEC-014 a changé la signature de serveStatic(res, path) en
+    // serveStatic(req, res, path) sur les 8 appels de server.js — un
+    // appel oublié planterait au moment de lire req.headers. Le 8e
+    // appel (le chemin générique) est déjà exercé par les tests
+    // ci-dessus sur /css/*, /favicon.svg, etc.
+    const paths = ["/", "/admin", "/refused", "/robots.txt", "/terms", "/seat/1", "/rules"];
+    for (const path of paths) {
+      const r = await fetch(`http://127.0.0.1:${PORT}${path}`);
+      assert.equal(r.status, 200, `${path} a répondu ${r.status} — req n'est peut-être pas arrivé jusqu'à serveStatic`);
+    }
+  });
+});
+
+describe("SPEC-014 — le hash est mis en cache, pas recalculé à chaque requête", () => {
+  test("deux requêtes sur le même fichier ne lisent son contenu qu'une seule fois", async () => {
+    // Un serveur en-process dédié : le module-level cache de http.js
+    // doit être observable depuis ce test, ce qu'un serveur spawné (le
+    // reste de ce fichier) ne permet pas.
+    const server = http.createServer((req, res) => serveStatic(req, res, "/css/app.css"));
+    await new Promise((resolve) => server.listen(0, resolve));
+    const port = server.address().port;
+    const spy = mock.method(fsMod, "readFileSync");
+    try {
+      await fetch(`http://127.0.0.1:${port}/`).then((r) => r.text());
+      await fetch(`http://127.0.0.1:${port}/`).then((r) => r.text());
+      const reads = spy.mock.calls.filter((c) => String(c.arguments[0]).includes("app.css"));
+      assert.equal(reads.length, 1, "le contenu a été relu plus d'une fois — le hash n'est pas mis en cache");
+    } finally {
+      spy.mock.restore();
+      await new Promise((resolve) => server.close(resolve));
     }
   });
 });
