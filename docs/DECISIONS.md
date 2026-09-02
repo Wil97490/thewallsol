@@ -33,6 +33,7 @@ Format: date · decision · why · status · where it is enforced.
 | — | Tests are hermetic; production values never decide what the release gate tests | otherwise a config change silently changes what is proven | 🟢 | `test/_helpers.js` |
 | 2026-08-29 | The concentration ceiling is per wallet, and the page says so | fifteen wallets each under the ceiling hold one position and pass | 🟢 | `src/checks.js`, `test/checks.test.js` |
 | 2026-08-30 | Commits are authored `The Wall <contact@thewallsol.com>` | no personal identity in a public history | 🟢 | `git config` per clone |
+| 2026-09-02 | The hero loads only the active theme's WebP via a CSS `background-image` gated by the existing `data-theme`/`prefers-color-scheme` contract, not `<picture>`+`media` and no extra JS | `<picture>`+`media` can only react to real media features, not the site's `data-theme` attribute, so it cannot honour an explicit theme choice; a browser only fetches a `background-image` for the rule that currently applies, so exactly one WebP loads per visit | 🟢 | `SPEC-013B`, `public/css/visual.css:.hero-monolith` |
 
 ## Refused, with the reason
 
