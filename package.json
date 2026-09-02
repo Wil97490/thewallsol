@@ -17,6 +17,9 @@
   "optionalDependencies": {
     "@google-cloud/firestore": "^7.10.0"
   },
+  "devDependencies": {
+    "firebase-tools": "^15.28.2"
+  },
   "license": "MIT",
   "description": "Twenty-four advertising seats. None sold without a check, and every refusal published.",
   "homepage": "https://thewallsol.com"
