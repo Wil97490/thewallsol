@@ -1,6 +1,13 @@
 {
   "hosting": {
     "site": "thewallsol",
+    "headers": [{
+      "source": "**/*.@(css|js|mjs)",
+      "headers": [{
+        "key": "Cache-Control",
+        "value": "public, max-age=0, must-revalidate"
+      }]
+    }],
     "rewrites": [{
       "source": "**",
       "run": { "serviceId": "wall", "region": "europe-west1" }
