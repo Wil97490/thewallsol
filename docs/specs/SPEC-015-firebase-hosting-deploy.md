@@ -2,7 +2,7 @@
 
 **Author:** Operator (relayed via Claude Code session)
 **Date:** 2026-09-02
-**Status:** draft
+**Status:** validated
 **Branch:** `spec/015-firebase-hosting-deploy`
 
 ---

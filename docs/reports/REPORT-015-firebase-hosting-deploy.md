@@ -3,7 +3,6 @@
 **SPEC executed:** SPEC-015-firebase-hosting-deploy
 **Branch:** `spec/015-firebase-hosting-deploy`
 **Starting commit:** `0ab50ac65a018200e2dc9614e536b8408285b279`
-**Final commit:** `3e3c263`
 **Date:** 2026-09-02
 
 Rule: nothing in this report is written that was not run. A test not
