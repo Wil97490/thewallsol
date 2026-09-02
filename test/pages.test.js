@@ -214,6 +214,34 @@ test("aucune page statique ne contient de script en ligne", () => {
   assert.deepEqual(bad, [], "la CSP les refusera en silence");
 });
 
+/* ---- hero : un seul asset par visite, jamais les deux -------------- *
+ * SPEC-013B. Les deux thèmes tenaient chacun leur propre <img>,
+ * toujours chargée même invisible — un navigateur ne saute jamais le
+ * téléchargement d'un <img src> pour un display:none. Un seul élément
+ * porte désormais l'image en background-image CSS ; seule la règle qui
+ * s'applique déclenche un fetch. Ce test verrouille la structure statique
+ * (markup + CSS) qui rend ça vrai ; le comportement réseau réel est
+ * vérifié en navigateur, hors de ce test suite. ------------------------ */
+test("le hero ne charge plus deux <img> par thème", () => {
+  const html = fsp.readFileSync(new URL("../public/index.html", import.meta.url).pathname, "utf8");
+  assert.doesNotMatch(html, /hero-monolith-dark/);
+  assert.doesNotMatch(html, /hero-monolith-light/);
+  assert.match(html, /<div class="hero-monolith"><\/div>/);
+  assert.equal((html.match(/class="hero-monolith[" ]/g) || []).length, 1);
+});
+
+test("le CSS du hero porte le contrat de thème à 3 états sur background-image", () => {
+  const css = fsp.readFileSync(new URL("../public/css/visual.css", import.meta.url).pathname, "utf8");
+  // défaut : sombre
+  assert.match(css, /\.hero-monolith\{[^}]*background-image:url\(\/monolith-dark\.webp\)/);
+  // data-theme="light" explicite gagne toujours sur le système
+  assert.match(css, /:root\[data-theme="light"\] \.hero-monolith\{background-image:url\(\/monolith-light\.webp\)\}/);
+  // système clair, tant que data-theme n'est pas "dark"
+  assert.match(css, /@media \(prefers-color-scheme:light\)\{:root:not\(\[data-theme="dark"\]\) \.hero-monolith\{background-image:url\(\/monolith-light\.webp\)\}\}/);
+  // reduced-motion : la classe est inchangée, la règle continue de s'appliquer
+  assert.match(css, /@media \(prefers-reduced-motion:reduce\)\{\.hero-monolith,\.hero-art-glow\{animation:none\}/);
+});
+
 test("aucune page rendue côté serveur ne contient de script en ligne", () => {
   const pages = [
     refusalPage(row()),
