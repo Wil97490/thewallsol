@@ -20,6 +20,7 @@ Format: date · decision · why · status · where it is enforced.
 | 2026-08-28 | 9.35% of supply locked to 2026-11-28, Streamflow, non-cancelable | verifiable without trusting the page | 🟢 | `public/rules.html`, contract `683Jjc…dtryJ` |
 | 2026-09-01 | Telegram and X are removed as public contact channels; `contact@thewallsol.com` is the sole channel until a new official one exists | both accounts confirmed suspended by the operator | 🟢 | `SPEC-008`, every public footer, `public/rules.html` |
 | 2026-09-01 | The photorealistic WebP monolith (dark/light) is the final hero visual, replacing the provisional abstract SVG | operator validated the direction; the SVG was explicitly provisional | 🟢 | `SPEC-010`, `public/monolith-dark.webp`, `public/monolith-light.webp` |
+| 2026-09-02 | The hero loads exactly one WebP (dark or light) per visit, matching the active theme, instead of both | ~307 KB unconditionally fetched for a single visible image was pure waste; the visible image is fully determined by CSS at parse time, so a browser can be made to fetch only that one | 🟢 | `SPEC-013B`, `public/css/visual.css:.hero-monolith` |
 
 ## Method
 
@@ -33,6 +34,8 @@ Format: date · decision · why · status · where it is enforced.
 | — | Tests are hermetic; production values never decide what the release gate tests | otherwise a config change silently changes what is proven | 🟢 | `test/_helpers.js` |
 | 2026-08-29 | The concentration ceiling is per wallet, and the page says so | fifteen wallets each under the ceiling hold one position and pass | 🟢 | `src/checks.js`, `test/checks.test.js` |
 | 2026-08-30 | Commits are authored `The Wall <contact@thewallsol.com>` | no personal identity in a public history | 🟢 | `git config` per clone |
+| 2026-09-02 | CSS/JS/MJS carry a content-hash `ETag` and `mtime`-based `Last-Modified`, revalidated under `Cache-Control: no-cache` (never a stale serving window) | a byte-identical redeploy still resets `mtime` (`Dockerfile`'s `COPY`), so a validator makes revalidation cheap without weakening the freshness guarantee `no-cache` already gave | 🟢 | `SPEC-014`, `src/http.js:serveStatic` |
+| 2026-09-02 | `npm run deploy` also publishes `firebase.json` to Firebase Hosting (`firebase deploy --only hosting`), after the Cloud Run traffic switch | Firebase Hosting does not forward a client's conditional headers to the Cloud Run origin by default, and nothing republished `firebase.json`'s own edge-cache rule on its own — measured directly: the public domain returned `200`/`no-cache` where the origin correctly returned `304`, until this step existed | 🟢 | `SPEC-014A`, `SPEC-015`, `scripts/deploy.sh` |
 
 ## Refused, with the reason
 
