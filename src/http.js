@@ -172,3 +172,36 @@ export function throttle(key, max, windowMs) {
   if (hits.size > 5000) hits.clear();          // crude, bounded, good enough
   return true;
 }
+
+/**
+ * Serve a static HTML file with marker substitution.
+ *
+ * Used by exactly one page, and reluctantly. /terms is a hand-written
+ * document and should stay one — moving it into a template would mean
+ * maintaining its prose in a JS string. But its publisher block has to
+ * come from config, or it drifts from the truth the moment anything
+ * changes. So the file keeps its markers and the server fills them.
+ *
+ * Not cached: the block it renders depends on the environment, not on
+ * the file's mtime, so an ETag off the file would be a lie.
+ */
+export function serveHtml(res, relPath, subs = {}) {
+  const full = path.resolve(PUBLIC_DIR, relPath.replace(/^\/+/, ""));
+  if (!full.startsWith(path.resolve(PUBLIC_DIR) + path.sep)) {
+    return json(res, 404, { error: "not found" });
+  }
+  let html;
+  try { html = fs.readFileSync(full, "utf8"); }
+  catch { return json(res, 404, { error: "not found" }); }
+
+  for (const [key, value] of Object.entries(subs)) {
+    html = html.split(`<!--${key}-->`).join(value);
+  }
+
+  res.writeHead(200, {
+    "content-type": "text/html; charset=utf-8",
+    "cache-control": "no-cache",
+    ...SECURITY_HEADERS,
+  });
+  res.end(html);
+}
