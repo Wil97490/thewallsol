@@ -67,6 +67,63 @@ printf '%s' "https://mainnet.helius..."  | gcloud secrets versions add solana-rp
 printf '%s' "AIza..."                    | gcloud secrets versions add safe-browsing-key --project $PROJECT --data-file=-
 ```
 
+### 2.6 Resend — la clé qui envoie les reçus
+
+Sans elle, un acheteur paie et ne reçoit pas de reçu. Le siège lui est
+attribué quand même — un paiement confirmé sur la chaîne ne dépend pas
+d'un e-mail — et l'échec est écrit au journal d'audit sous
+`email_not_configured`. Le déploiement fonctionne, il vous prévient
+simplement au passage.
+
+Dans l'ordre, une action par étape :
+
+1. Créez un compte sur `resend.com` puis ouvrez **Domains → Add Domain**
+   et entrez `thewallsol.com`.
+   → Resend affiche trois enregistrements DNS à créer (un TXT et deux
+   CNAME, ou DKIM/SPF selon le mode).
+
+2. Créez ces enregistrements chez votre registrar, à l'identique.
+   → Comptez de quelques minutes à quelques heures. Le domaine passe de
+   `Pending` à **`Verified`** dans Resend. **N'allez pas plus loin tant
+   qu'il n'est pas `Verified`** : un envoi depuis un domaine non vérifié
+   est rejeté en 403, et l'erreur apparaît dans le journal d'audit sous
+   `email_rejected`, pas dans les logs Cloud Run.
+
+3. Allez dans **API Keys → Create API Key**, permission **Sending
+   access**, et copiez la clé (`re_...`).
+   → Elle n'est affichée qu'une fois.
+
+4. Dans Cloud Shell, créez le secret :
+
+```bash
+gcloud secrets create resend-api-key --project $PROJECT --replication-policy=automatic
+printf '%s' "re_..." | gcloud secrets versions add resend-api-key --project $PROJECT --data-file=-
+```
+
+   → `Created version [1] of the secret [resend-api-key]`.
+
+5. Donnez au compte de service le droit de la lire :
+
+```bash
+gcloud secrets add-iam-policy-binding resend-api-key --project $PROJECT \
+  --member "serviceAccount:wall-agents@$PROJECT.iam.gserviceaccount.com" \
+  --role roles/secretmanager.secretAccessor
+```
+
+   → Une ligne `bindings:` avec le rôle `secretAccessor`.
+
+6. Redéployez (`./scripts/deploy.sh`).
+   → Au début du déploiement, la ligne « pas de secret resend-api-key »
+   **ne doit plus apparaître**.
+
+7. Vérifiez :
+
+```bash
+curl -s -H "authorization: Bearer $ADMIN_TOKEN" https://thewallsol.com/api/admin/ops | python3 -m json.tool | grep -A6 '"mail"'
+```
+
+   → `"configured": true` et `"missing": []`.
+
 ---
 
 ## §3 — Déployer
@@ -205,22 +262,92 @@ production.
 
 ## §8 — La partie juridique **[VOUS]**
 
-Je ne suis pas juriste et ce qui suit n'est pas un avis juridique. Trois
-points qui, à ma lecture, méritent votre attention avant d'encaisser le
-premier euro :
+Je ne suis pas juriste et rien ici n'est un avis juridique. Ce qui suit
+décrit ce que le code fait, et ce qu'il vous laisse à décider.
+
+### Ce que le code impose désormais
+
+L'identité de l'éditeur vit dans `deploy.env`, pas dans le HTML. Trois
+conséquences, toutes voulues :
+
+- **Rien d'incomplet n'est imprimé.** Un champ vide ne produit pas une
+  ligne vide ni un « à compléter » : il ne produit rien. La page publie
+  ce qui est établi, comme le reste du site.
+- **Une identité incomplète ne bloque PAS la vente** — décision opérateur
+  du 03/09/2026. Elle est *tracée* : chaque siège vendu alors qu'il
+  manque quelque chose écrit une ligne `sold_with_gaps` au journal
+  d'audit, avec la liste de ce qui manquait **ce jour-là** — parce que
+  « les mentions étaient-elles complètes le jour de cette vente ? » est
+  une question qui se pose après coup, et qu'une réponse reconstituée
+  depuis la configuration d'aujourd'hui serait une supposition.
+  `/api/admin/ops` liste les manques en permanence sous `sales.gaps`.
+- **Le refus strict est à une variable près.** `SALES_REQUIRE_PUBLISHER=true`
+  et `/api/checkout` répond 503, **avant** de lire la chaîne, avec
+  « Seats are not on sale right now […] this is about us, not about your
+  contract » — pour qu'un acheteur ne reçoive jamais un refus qui a l'air
+  de porter sur son token alors qu'il porte sur nous. Le mécanisme est
+  construit et testé ; il est simplement désactivé.
+- **Le SIREN est vérifié.** Neuf chiffres et la somme de Luhn. Un numéro
+  mal recopié est signalé au démarrage plutôt qu'imprimé faux sur une
+  page publique. La vérification établit que le numéro est bien formé —
+  **pas** qu'il vous appartient, et rien de ce qui est imprimé ne le
+  prétend.
+
+Ce qu'il reste à renseigner se lit en une commande :
+
+```bash
+curl -s -H "authorization: Bearer $ADMIN_TOKEN" https://thewallsol.com/api/admin/ops | python3 -m json.tool | grep -A12 '"sales"'
+```
+
+→ `"gaps": []` quand plus rien ne manque. Tant que la liste n'est pas
+vide, la vente continue mais chaque siège vendu est marqué.
+
+Et pour retrouver les ventes concernées :
+
+```bash
+curl -s -H "authorization: Bearer $ADMIN_TOKEN" https://thewallsol.com/api/admin/ops | python3 -m json.tool | grep -B2 -A6 sold_with_gaps
+```
+
+### L'adresse — le point à trancher
+
+Vous avez choisi « adresse communiquée sur demande »
+(`PUBLISHER_ADDRESS_ON_REQUEST=true`). La page le dit alors en toutes
+lettres, avec l'adresse e-mail pour l'obtenir, plutôt que de laisser un
+trou que le lecteur interprète.
+
+**Ceci compte d'autant plus que la vente n'est plus bloquée :** à ma lecture, la
+LCEN n'autorise à ne pas publier son identité qu'aux éditeurs **non
+professionnels**. Une micro-entreprise immatriculée qui vend de l'espace
+publicitaire est un éditeur professionnel, et pour ceux-là l'adresse
+fait partie de ce qui doit figurer sur le site. « Communiquée sur
+demande » est donc probablement insuffisant. Je peux me tromper — c'est
+exactement le genre de question sur laquelle il faut l'avis de quelqu'un
+dont c'est le métier.
+
+Les deux façons de ne pas publier votre domicile :
+
+1. **Une domiciliation commerciale** — 15 à 40 €/mois, elle vous donne
+   une adresse publiable, et c'est la voie standard pour un opérateur
+   seul. Renseignez-la dans `PUBLISHER_ADDRESS` et repassez
+   `PUBLISHER_ADDRESS_ON_REQUEST=false`.
+2. **L'adresse de votre expert-comptable**, si le vôtre l'accepte.
+
+Tant que c'est en suspens, laissez le réglage tel quel : la page reste
+honnête sur ce qu'elle ne publie pas, et vous décidez avant la première
+vente, pas après.
+
+### Le reste, inchangé
 
 - Vous vendez de **l'espace publicitaire**, pas un service financier. Le
-  site le dit déjà partout (page « The rules », pied de page). Ne laissez
-  personne, y compris vous, écrire une phrase qui ressemble à une
-  recommandation — c'est exactement ce que la liste de mots interdits
-  empêche les agents de faire.
+  site le dit déjà partout. Ne laissez personne, y compris vous, écrire
+  une phrase qui ressemble à une recommandation — c'est exactement ce
+  que la liste de mots interdits empêche les agents de faire.
 - Encaisser en crypto dans le cadre d'une activité professionnelle a des
   conséquences comptables et fiscales en France. Parlez-en à votre
   expert-comptable avant l'ouverture, pas après.
-- Il vous faut des mentions légales, des CGV (durée du siège, absence de
-  remboursement, droit de refuser une entrée) et une politique de
-  confidentialité si vous collectez des e-mails — ce que fait le champ
-  optionnel du formulaire.
+- Il vous faut des CGV (durée du siège, absence de remboursement, droit
+  de refuser une entrée). La confidentialité est déjà traitée sur
+  `/terms`, et le reçu rappelle comment faire supprimer une adresse.
 
 ## La ronde du jour (v4.20)
 

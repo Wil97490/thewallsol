@@ -578,3 +578,81 @@ export function checksIndexPage() {
 
   return shell({ title, description, canonical: url, jsonLd, body });
 }
+
+/* ------------------------------------------------------------------ *
+ * THE LEGAL NOTICE — rendered from config, never from prose.
+ *
+ * The publisher block on /terms used to be four hardcoded paragraphs
+ * with three markers reading "[to be completed]" printed live on a
+ * public page, under the heading "Who publishes this site", to every
+ * visitor deciding whether to send money to a stranger.
+ *
+ * This builds the block from what is actually set. The rule is the one
+ * the rest of the site runs on: a field that is not established is not
+ * printed. No placeholder, no "N/A", no reworded gap. If the publisher
+ * has no SIREN yet, the notice simply has no SIREN line.
+ *
+ * What that does NOT do, by the operator's decision of 2026-09-03, is
+ * stop a sale. Selling continues with the notice incomplete, and each
+ * such sale is marked `sold_with_gaps` in the audit log. The closed-till
+ * sentence below is therefore rendered only when the till really is
+ * closed — that is, under SALES_REQUIRE_PUBLISHER=true.
+ * ------------------------------------------------------------------ */
+
+const sirenSpaced = (s) => {
+  const d = String(s || "").replace(/[^0-9]/g, "");
+  return d.length === 9 ? `${d.slice(0, 3)} ${d.slice(3, 6)} ${d.slice(6)}` : d;
+};
+
+export function publisherBlock(pub = config.publisher, { salesClosed = false, identityIncomplete = false } = {}) {
+  const rows = [];
+  const mail = (a) => `<a href="mailto:${esc(a)}">${esc(a)}</a>`;
+
+  if (pub.name) {
+    const form = pub.legalForm ? ` — ${esc(pub.legalForm)}` : "";
+    rows.push(`<p><strong>Publisher:</strong> ${esc(pub.name)}${form}</p>`);
+  }
+  if (pub.director) rows.push(`<p><strong>Publication director:</strong> ${esc(pub.director)}</p>`);
+  if (pub.siren) rows.push(`<p><strong>SIREN:</strong> ${esc(sirenSpaced(pub.siren))}</p>`);
+  if (pub.vat) rows.push(`<p><strong>VAT:</strong> ${esc(pub.vat)}</p>`);
+
+  if (pub.address) {
+    rows.push(`<p><strong>Address:</strong> ${esc(pub.address)}</p>`);
+  } else if (pub.addressOnRequest && pub.contact) {
+    /* Said in words rather than left as a hole. The reader learns the
+     * address exists and how to get it, which is a different thing
+     * from a page that simply does not mention one. */
+    rows.push(
+      `<p><strong>Address:</strong> not published here. Write to ${mail(pub.contact)} and it is sent to you.</p>`
+    );
+  }
+
+  if (pub.contact) rows.push(`<p><strong>Contact:</strong> ${mail(pub.contact)}</p>`);
+  if (pub.host) rows.push(`<p><strong>Hosting:</strong> ${esc(pub.host)}</p>`);
+
+  if (salesClosed) {
+    /* The site says out loud that it is not selling, on the page where
+     * somebody checks who they would be buying from.
+     *
+     * It names the identity as the cause only when the identity IS the
+     * cause. The till also closes when no receipt could be sent, and
+     * printing "the identity above is incomplete" under a notice that
+     * is in fact complete would be exactly the kind of confident wrong
+     * sentence the rest of this codebase exists to prevent. */
+    const why = identityIncomplete
+      ? ` The identity above is incomplete, and the checkout stays closed until it is not.`
+      : ``;
+    rows.push(
+      `<p><strong>Seats are not on sale.</strong>${why}` +
+      ` Everything else on this site — the ledger, the checks, the` +
+      ` nightly round — runs as normal.</p>`
+    );
+  }
+
+  rows.push(
+    `<p class="pledge-last">Governing law: France. Any dispute goes first to ` +
+    `${mail(pub.contact || "contact@thewallsol.com")}, and we will answer.</p>`
+  );
+
+  return rows.join("\n        ");
+}

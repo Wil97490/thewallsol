@@ -1,6 +1,7 @@
 import http from "node:http";
 import crypto from "node:crypto";
-import { config, isProd, isTest, productionPreconditions } from "./config.js";
+import { config, isProd, isTest, productionPreconditions, salesPreconditions, salesOpen,
+         salesGaps, publisherComplete } from "./config.js";
 import { deadline } from "./lib/deadline.js";
 import { isSolanaAddress } from "./lib/base58.js";
 import { vetUrl } from "./lib/net.js";
@@ -10,7 +11,8 @@ import { writeTape } from "./agents/tape.js";
 import { compose, probeDraft, monthlyDraft } from "./agents/poster.js";
 import { shortlist, enrich, audience, postWorth, oneADay, prospects, mergeProspects, outreachDraft,
          aggregate, pushNight, totals } from "./agents/scout.js";
-import { refusalPage, refusalGonePage, refusalMissingPage, seenPage, checkPage, checksIndexPage, sitemap } from "./pages.js";
+import { refusalPage, refusalGonePage, refusalMissingPage, seenPage, checkPage, checksIndexPage, sitemap,
+         publisherBlock } from "./pages.js";
 import { report } from "./agents/reporter.js";
 import { gatherFacts } from "./facts.js";
 import { progress, reinstate } from "./graduation.js";
@@ -18,8 +20,9 @@ import { audit, queueForHuman, agentsEnabled, guardOutput } from "./guardrails.j
 import * as db from "./storage.js";
 import * as wall from "./wall.js";
 import * as pay from "./payments.js";
-import { store, recentPosts } from "./notify.js";
-import { json, text, serveStatic, readJson, secretEquals, bearer, clientIp, throttle } from "./http.js";
+import { store, recentPosts, mailStatus } from "./notify.js";
+import { recordSeatAward } from "./sales.js";
+import { json, text, serveStatic, serveHtml, readJson, secretEquals, bearer, clientIp, throttle } from "./http.js";
 
 /* ------------------------------------------------------------------ *
  * Two shapes of work, deliberately separated.
@@ -447,6 +450,23 @@ async function handleCheckout(req, res) {
     return json(res, 429, { error: "Too many attempts. Give it ten minutes." });
   }
 
+  /* The till, before anything else.
+   *
+   * This runs ahead of the gate on purpose. Reading the chain for a
+   * token we cannot sell a seat for anyway spends an RPC call and,
+   * worse, hands the buyer a verdict on their contract as though the
+   * verdict were the reason. It is not. The reason is us. */
+  const shut = salesPreconditions();
+  if (shut.length) {
+    await audit("gate", "sales_closed", { missing: shut });
+    return json(res, 503, {
+      allow: false, retryable: true, factsUnread: true, salesClosed: true,
+      reason: "Seats are not on sale right now. Nothing was checked and nothing was charged — this is about us, not about your contract.",
+      detail: [],
+      error: "Seats are not on sale right now.",
+    });
+  }
+
   const body = await readJson(req);
   const v = validateEntry(body);
   if (!v.ok) return json(res, 400, { error: "invalid", detail: v.errors });
@@ -614,8 +634,18 @@ async function handleOrderStatus(req, res, id) {
           id: order.id, surplus: check.surplus, signature: check.signature,
         });
       }
-      await audit("gate", "seat_awarded", { id: order.id, seatNo: order.seatNo, ticker: order.ticker, signature: check.signature, method: check.method });
-      return json(res, 200, { status: "paid", seatNo: order.seatNo, signature: check.signature });
+      /* One call, in src/sales.js: the award line, the gap line if
+       * anything was still missing, and the receipt. It lives there so
+       * a test can run the same code the server runs — behind
+       * verifyPayment() it was unreachable, and a trace nobody can
+       * exercise is a trace nobody has proved. */
+      const { gaps, receipt } = await recordSeatAward(order, check);
+      void gaps;
+
+      return json(res, 200, {
+        status: "paid", seatNo: order.seatNo, signature: check.signature,
+        receipt: { sent: receipt.sent, to: receipt.sent ? order.contact || null : null },
+      });
     }
     return json(res, 200, {
       status: "awaiting_payment", reason: check.reason,
@@ -1049,6 +1079,15 @@ const server = http.createServer(async (req, res) => {
         takeovers: wall.recentTakeovers(await db.listSeats(), 30),
         audit: await db.recentAudit(50),
         agentsEnabled: agentsEnabled(),
+        /* The two answers worth having before wondering why nothing
+         * sold today: is the till open, and can a receipt leave. */
+        sales: {
+          open: salesOpen(),
+          blocking: salesPreconditions(),
+          gaps: salesGaps(),
+          requirePublisher: config.requirePublisherForSales,
+        },
+        mail: mailStatus(),
       });
     }
 
@@ -1062,7 +1101,14 @@ const server = http.createServer(async (req, res) => {
         const rows = (await db.listRefusals({ limit: 400 })).filter((r) => !r.hidden && r.slug);
         return text(res, 200, sitemap(rows), "application/xml; charset=utf-8");
       }
-      if (p === "/terms") return serveStatic(req, res, "terms.html");
+      if (p === "/terms") {
+        return serveHtml(res, "terms.html", {
+          PUBLISHER_IDENTITY: publisherBlock(config.publisher, {
+            salesClosed: !salesOpen(),
+            identityIncomplete: !publisherComplete(),
+          }),
+        });
+      }
       if (p.startsWith("/refused/")) {
         /* Server-rendered, complete on the first response. A page that
          * has to exist in a search index the moment it is written cannot
